@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Ingresos · Rubén</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap');
+  :root {
+    --bg: #0f0e0c; --surface: #1a1917; --surface2: #232220; --border: #2e2c29;
+    --accent: #d4a853; --accent2: #7eb89a; --accent3: #c17b5a;
+    --text: #e8e4dc; --text2: #8a8580; --text3: #5a5650; --danger: #c0574a; --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; padding: 0; max-width: 420px; margin: 0 auto; }
+  .header { padding: 24px 20px 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 100; }
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .header h1 { font-family: 'Fraunces', serif; font-weight: 300; font-size: 22px; letter-spacing: -0.3px; }
+  .header h1 span { color: var(--accent); font-style: italic; }
+  .mes-selector { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 11px; color: var(--text2); }
+  .mes-selector select { background: none; border: none; color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; outline: none; }
+  .mes-selector select option { background: var(--surface); }
+  .saving-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); display: inline-block; margin-left: 6px; transition: background 0.3s; }
+  .saving-dot.saving { background: var(--accent); animation: blink 0.6s ease-in-out infinite; }
+  .saving-dot.saved { background: var(--accent2); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .resumen { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .total-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px; }
+  .total-amount { font-family: 'Fraunces', serif; font-size: 38px; font-weight: 600; color: var(--accent); letter-spacing: -1px; line-height: 1; }
+  .total-amount .currency { font-size: 20px; font-weight: 300; }
+  .breakdown { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 14px; }
+  .breakdown-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+  .breakdown-item .b-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .breakdown-item .b-amount { font-size: 14px; color: var(--text); font-weight: 500; }
+  .breakdown-item.pct .b-amount { color: var(--accent); }
+  .breakdown-item.hrs .b-amount { color: var(--accent2); }
+  .breakdown-item.pzs .b-amount { color: var(--accent3); }
+  .timer-section { padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .timer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .timer-header span { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; }
+  .timer-display { display: flex; align-items: center; gap: 12px; }
+  .timer-clock { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 300; color: var(--accent2); letter-spacing: -0.5px; min-width: 90px; }
+  .timer-clock.running { animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
+  .timer-controls { display: flex; gap: 8px; flex: 1; }
+  .btn-timer { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; transition: all 0.15s; }
+  .btn-start { background: var(--accent2); color: #0f1a14; border-color: var(--accent2); }
+  .btn-pause { background: var(--surface2); color: var(--text2); }
+  .btn-timer:active { transform: scale(0.97); }
+  .precio-hora-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .precio-hora-row label { font-size: 10px; color: var(--text3); white-space: nowrap; }
+  .precio-hora-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; outline: none; width: 80px; }
+  .precio-hora-row input:focus { border-color: var(--accent2); }
+  .tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 20px; background: var(--bg); position: sticky; top: 80px; z-index: 99; }
+  .tab { flex: 1; padding: 12px 4px; text-align: center; font-size: 10px; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; text-transform: uppercase; letter-spacing: 1px; transition: all 0.15s; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .content { padding: 16px 20px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .form-card h3 { font-family: 'Fraunces', serif; font-weight: 300; font-size: 15px; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .form-card h3 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-pct { background: var(--accent); }
+  .dot-hrs { background: var(--accent2); }
+  .dot-pzs { background: var(--accent3); }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+  .field input, .field textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; outline: none; transition: border-color 0.15s; }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); }
+  .field textarea { resize: none; height: 60px; }
+  .calc-preview { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; font-size: 12px; color: var(--text2); min-height: 36px; }
+  .calc-preview .result { color: var(--accent); font-size: 15px; font-weight: 500; }
+  .btn-add { width: 100%; padding: 12px; background: var(--accent); color: #1a1400; border: none; border-radius: 10px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; cursor: pointer; letter-spacing: 0.5px; transition: all 0.15s; }
+  .btn-add:active { transform: scale(0.98); opacity: 0.9; }
+  .btn-add.hrs { background: var(--accent2); color: #0a150f; }
+  .btn-add.pzs { background: var(--accent3); color: #1a0d07; }
+  .btn-habitual { width: 100%; padding: 10px; background: transparent; color: var(--accent); border: 1px dashed var(--accent); border-radius: 10px; font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; letter-spacing: 0.5px; margin-bottom: 14px; transition: all 0.15s; }
+  .btn-habitual:active { opacity: 0.7; }
+  .registros-lista { margin-top: 4px; }
+  .registro-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-start; animation: slideIn 0.2s ease; }
+  @keyframes slideIn { from { opacity:0; transform: translateY(-6px); } to { opacity:1; transform: none; } }
+  .registro-info { flex: 1; }
+  .registro-tipo { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+  .registro-tipo.pct { color: var(--accent); }
+  .registro-tipo.hrs { color: var(--accent2); }
+  .registro-tipo.pzs { color: var(--accent3); }
+  .registro-desc { font-size: 12px; color: var(--text2); margin-bottom: 2px; }
+  .registro-fecha { font-size: 10px; color: var(--text3); }
+  .registro-importe { font-family: 'Fraunces', serif; font-size: 16px; color: var(--text); font-weight: 300; margin-left: 12px; white-space: nowrap; }
+  .btn-del { background: none; border: none; color: var(--text3); font-size: 22px; cursor: pointer; padding: 0 0 0 8px; line-height: 1; touch-action: manipulation; }
+  .btn-del:active { color: var(--danger); }
+  .empty-state { text-align: center; padding: 30px 0; color: var(--text3); font-size: 12px; }
+  .empty-state .icon { font-size: 28px; margin-bottom: 8px; }
+  .factura-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .factura-card h3 { font-family: 'Fraunces', serif; font-weight: 300; font-size: 15px; margin-bottom: 14px; color: var(--text2); }
+  .factura-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .factura-row:last-child { border-bottom: none; }
+  .factura-row.total { margin-top: 8px; padding-top: 12px; font-size: 15px; font-family: 'Fraunces', serif; font-weight: 600; color: var(--accent); border-top: 1px solid var(--accent); border-bottom: none; }
+  .factura-row .label { color: var(--text2); }
+  .factura-row .valor { color: var(--text); }
+  .nota-iva { background: var(--surface2); border-radius: 8px; padding: 10px 12px; font-size: 11px; color: var(--text3); margin-top: 8px; line-height: 1.5; }
+  .nota-iva strong { color: var(--text2); }
+  .export-opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .btn-export-small { padding: 10px 8px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); border-radius: 8px; font-family: 'DM Mono', monospace; font-size: 10px; cursor: pointer; transition: all 0.15s; text-align: center; }
+  .btn-export-small:active { border-color: var(--accent2); color: var(--accent2); }
+  .section-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; margin-top: 4px; }
+  .loading-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; gap: 12px; }
+  .loading-overlay .spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay span { font-size: 11px; color: var(--text3); }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--accent); color: #1a1400; padding: 10px 20px; border-radius: 20px; font-size: 12px; font-weight: 500; transition: transform 0.3s ease; z-index: 999; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <span>Cargando datos...</span>
+</div>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">Control de</div>
+      <h1>In<span>gresos</span> <span class="saving-dot" id="savingDot"></span></h1>
+    </div>
+    <div class="mes-selector">
+      <span style="color:var(--text3)">&#9660;</span>
+      <select id="mesSelect" onchange="cambiarMes()"></select>
+    </div>
+  </div>
+</div>
+
+<div class="resumen">
+  <div class="total-label">Total del mes</div>
+  <div class="total-amount"><span class="currency">&#8364; </span><span id="totalMes">0,00</span></div>
+  <div class="breakdown">
+    <div class="breakdown-item pct"><div class="b-label">% Beneficio</div><div class="b-amount" id="totalPct">&#8364;0,00</div></div>
+    <div class="breakdown-item hrs"><div class="b-label">Horas</div><div class="b-amount" id="totalHrs">&#8364;0,00</div></div>
+    <div class="breakdown-item pzs"><div class="b-label">Piezas</div><div class="b-amount" id="totalPzs">&#8364;0,00</div></div>
+  </div>
+</div>
+
+<div class="timer-section">
+  <div class="timer-header">
+    <span>&#9201; Fichar horas</span>
+    <span id="timerEstado" style="color:var(--text3)">Parado</span>
+  </div>
+  <div class="timer-display">
+    <div class="timer-clock" id="timerClock">00:00:00</div>
+    <div class="timer-controls">
+      <button class="btn-timer btn-start" id="btnStartStop" onclick="toggleTimer()">Iniciar</button>
+      <button class="btn-timer btn-pause" id="btnGuardar" onclick="guardarTimer()" style="display:none">Guardar</button>
+    </div>
+  </div>
+  <div class="precio-hora-row">
+    <label>&#8364;/hora:</label>
+    <input type="number" id="precioHoraTimer" value="25" min="0" step="0.5">
+    <span style="font-size:11px;color:var(--text3);margin-left:4px;" id="timerImporte">= &#8364;0,00</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('pct')">% Benef.</div>
+  <div class="tab" onclick="showTab('hrs')">Horas</div>
+  <div class="tab" onclick="showTab('pzs')">Piezas</div>
+  <div class="tab" onclick="showTab('lista')">Registros</div>
+  <div class="tab" onclick="showTab('factura')">Factura</div>
+</div>
+
+<div class="content">
+
+  <div class="panel active" id="panel-pct">
+    <div class="form-card">
+      <h3><span class="dot dot-pct"></span>Registro de porcentaje</h3>
+      <button class="btn-habitual" id="btnRellenar">&#9889; Rellenar datos habituales</button>
+      <div class="field">
+        <label>Factura carpinteria (Base imponible &#8364;)</label>
+        <input type="number" id="pct-factura" placeholder="ej. 5000" step="0.01" oninput="calcPct()">
+      </div>
+      <div class="field">
+        <label>Coste de materiales &#8364;</label>
+        <input type="number" id="pct-materiales" placeholder="ej. 1200" step="0.01" oninput="calcPct()">
+      </div>
+      <div class="field">
+        <label>Porcentaje aplicado %</label>
+        <input type="number" id="pct-porcentaje" value="12.5" step="0.5" oninput="calcPct()">
+      </div>
+      <div class="calc-preview" id="pct-preview">Introduce los datos para calcular</div>
+      <div class="field">
+        <label>Descripcion / referencia</label>
+        <input type="text" id="pct-desc" placeholder="ej. Pedido furgoneta #23">
+      </div>
+      <button class="btn-add" onclick="addPct()">+ Añadir registro</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-hrs">
+    <div class="form-card">
+      <h3><span class="dot dot-hrs"></span>Registro de horas manual</h3>
+      <div class="field">
+        <label>Horas trabajadas</label>
+        <input type="number" id="hrs-horas" placeholder="ej. 3.5" step="0.25" oninput="calcHrs()">
+      </div>
+      <div class="field">
+        <label>Precio por hora &#8364;</label>
+        <input type="number" id="hrs-precio" placeholder="ej. 25" step="0.5" oninput="calcHrs()">
+      </div>
+      <div class="calc-preview" id="hrs-preview">Introduce los datos para calcular</div>
+      <div class="field">
+        <label>Descripcion del trabajo</label>
+        <input type="text" id="hrs-desc" placeholder="ej. Diseño CNC furgoneta Sprinter">
+      </div>
+      <div class="field">
+        <label>Fecha</label>
+        <input type="date" id="hrs-fecha">
+      </div>
+      <button class="btn-add hrs" onclick="addHrs()">+ Añadir horas</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-pzs">
+    <div class="form-card">
+      <h3><span class="dot dot-pzs"></span>Pieza fabricada</h3>
+      <div class="field">
+        <label>Nombre / referencia de la pieza</label>
+        <input type="text" id="pzs-nombre" placeholder="ej. Mueble lateral Sprinter #4">
+      </div>
+      <div class="field">
+        <label>Coste de material &#8364;</label>
+        <input type="number" id="pzs-material" placeholder="ej. 80" step="0.01" oninput="calcPzs()">
+      </div>
+      <div class="field">
+        <label>Coste de herramientas / pegamentos &#8364;</label>
+        <input type="number" id="pzs-herramientas" placeholder="ej. 12" step="0.01" oninput="calcPzs()">
+      </div>
+      <div class="field">
+        <label>Horas (fabricacion + canteado + montaje)</label>
+        <input type="number" id="pzs-horas" placeholder="ej. 4" step="0.25" oninput="calcPzs()">
+      </div>
+      <div class="field">
+        <label>&#8364;/hora para piezas</label>
+        <input type="number" id="pzs-preciohora" value="25" step="0.5" oninput="calcPzs()">
+      </div>
+      <div class="field">
+        <label>Transporte &#8364; (si aplica)</label>
+        <input type="number" id="pzs-transporte" placeholder="0" step="0.01" oninput="calcPzs()">
+      </div>
+      <div class="calc-preview" id="pzs-preview">Introduce los datos para calcular</div>
+      <button class="btn-add pzs" onclick="addPzs()">+ Añadir pieza</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-lista">
+    <div class="section-label">Registros del mes</div>
+    <div class="registros-lista" id="listaRegistros"></div>
+  </div>
+
+  <div class="panel" id="panel-factura">
+    <div class="factura-card">
+      <h3>Resumen para factura</h3>
+      <div id="facturaContenido"></div>
+    </div>
+    <div class="nota-iva">
+      <strong>Recuerda:</strong> importes en base imponible (sin IVA). Añade el <strong>21% de IVA</strong> al emitir en Factura Directa.
+    </div>
+    <div class="factura-card" style="margin-top:12px;">
+      <h3 style="margin-bottom:10px;">Exportar a Excel</h3>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Registros ordenados por fecha.</div>
+      <div class="export-opciones">
+        <button class="btn-export-small" onclick="exportarExcel('mes')">&#128197; Solo este mes</button>
+        <button class="btn-export-small" onclick="exportarExcel('todo')">&#128230; Todos los meses</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+var mesActual = new Date().getMonth();
+var anioActual = new Date().getFullYear();
+var datos = {};
+var saveTimeout = null;
+
+// STORAGE
+function cargarDatos() {
+  try {
+    var raw = localStorage.getItem('ruben_ingresos');
+    if (raw) datos = JSON.parse(raw);
+  } catch(e) { datos = {}; }
+  document.getElementById('loadingOverlay').style.display = 'none';
+  actualizarTodo();
+}
+function persistirDatos() {
+  var dot = document.getElementById('savingDot');
+  dot.className = 'saving-dot saving';
+  try {
+    localStorage.setItem('ruben_ingresos', JSON.stringify(datos));
+    dot.className = 'saving-dot saved';
+    setTimeout(function(){ dot.className = 'saving-dot'; }, 2000);
+  } catch(e) { dot.className = 'saving-dot'; }
+}
+function guardarDatos() {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(persistirDatos, 800);
+}
+function claveActual() { return anioActual + '-' + mesActual; }
+function registrosActuales() { return datos[claveActual()] || []; }
+
+// MES
+function initMesSelect() {
+  var sel = document.getElementById('mesSelect');
+  sel.innerHTML = '';
+  for (var i = 0; i < 12; i++) {
+    var opt = document.createElement('option');
+    opt.value = i; opt.textContent = MESES[i];
+    if (i === mesActual) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+function cambiarMes() {
+  mesActual = parseInt(document.getElementById('mesSelect').value);
+  actualizarTodo();
+}
+
+// UTILS
+function fmt(n) { return n.toFixed(2).replace('.',','); }
+function fmtN(n) { return parseFloat(n)||0; }
+function eur(n) { return '\u20AC'+fmt(n); }
+function hoy() { return new Date().toLocaleDateString('es-ES'); }
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+
+// TOTALES
+function actualizarTotales() {
+  var regs = registrosActuales();
+  var pct=0, hrs=0, pzs=0;
+  for(var i=0;i<regs.length;i++){
+    if(regs[i].tipo==='pct') pct+=regs[i].importe;
+    else if(regs[i].tipo==='hrs') hrs+=regs[i].importe;
+    else if(regs[i].tipo==='pzs') pzs+=regs[i].importe;
+  }
+  document.getElementById('totalMes').textContent = fmt(pct+hrs+pzs);
+  document.getElementById('totalPct').textContent = eur(pct);
+  document.getElementById('totalHrs').textContent = eur(hrs);
+  document.getElementById('totalPzs').textContent = eur(pzs);
+}
+
+// LISTA
+function actualizarLista() {
+  var regs = registrosActuales();
+  var el = document.getElementById('listaRegistros');
+  if (!regs.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">\uD83D\uDCCB</div>Sin registros este mes</div>';
+    return;
+  }
+  var labels = {pct:'% Beneficio', hrs:'Horas', pzs:'Pieza fabricada'};
+  var html = '';
+  for (var i = regs.length - 1; i >= 0; i--) {
+    var r = regs[i];
+    html += '<div class="registro-item" id="reg-' + i + '">' +
+      '<div class="registro-info">' +
+        '<div class="registro-tipo ' + r.tipo + '">' + (labels[r.tipo]||r.tipo) + '</div>' +
+        '<div class="registro-desc">' + (r.desc||'Sin descripcion') + '</div>' +
+        '<div class="registro-fecha">' + r.fecha + '</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">' +
+        '<div class="registro-importe">' + eur(r.importe) + '</div>' +
+        '<div class="del-confirm" id="delconf-' + i + '" style="display:none;gap:4px;">' +
+          '<button class="btn-del-si" data-idx="' + i + '" style="background:var(--danger);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:10px;cursor:pointer;font-family:DM Mono,monospace;">Borrar</button>' +
+          '<button class="btn-del-no" data-idx="' + i + '" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:10px;cursor:pointer;font-family:DM Mono,monospace;">No</button>' +
+        '</div>' +
+        '<button class="btn-del" data-idx="' + i + '">&times;</button>' +
+      '</div>' +
+    '</div>';
+  }
+  el.innerHTML = html;
+}
+
+document.getElementById('listaRegistros').addEventListener('click', function(e) {
+  var t = e.target;
+  if (t.classList.contains('btn-del')) {
+    var idx = t.getAttribute('data-idx');
+    document.querySelectorAll('.del-confirm').forEach(function(d){ d.style.display='none'; });
+    var conf = document.getElementById('delconf-' + idx);
+    if (conf) conf.style.display = 'flex';
+    return;
+  }
+  if (t.classList.contains('btn-del-no')) {
+    var idx = t.getAttribute('data-idx');
+    var conf = document.getElementById('delconf-' + idx);
+    if (conf) conf.style.display = 'none';
+    return;
+  }
+  if (t.classList.contains('btn-del-si')) {
+    var idx = parseInt(t.getAttribute('data-idx'));
+    var clave = claveActual();
+    if (datos[clave] && datos[clave][idx] !== undefined) {
+      datos[clave].splice(idx, 1);
+      guardarDatos();
+      actualizarTodo();
+      showToast('Registro eliminado');
+    }
+    return;
+  }
+});
+
+document.getElementById('btnRellenar').addEventListener('click', function() {
+  document.getElementById('pct-factura').value = '6806.28';
+  document.getElementById('pct-materiales').value = '2289.57';
+  document.getElementById('pct-porcentaje').value = '12.5';
+  calcPct();
+  showToast('\u26A1 Datos habituales cargados');
+});
+
+// FACTURA
+function actualizarFactura() {
+  var regs = registrosActuales();
+  var pct=0, hrs=0, pzs=0;
+  for(var i=0;i<regs.length;i++){
+    if(regs[i].tipo==='pct') pct+=regs[i].importe;
+    else if(regs[i].tipo==='hrs') hrs+=regs[i].importe;
+    else if(regs[i].tipo==='pzs') pzs+=regs[i].importe;
+  }
+  var base=pct+hrs+pzs, iva=base*0.21, total=base+iva;
+  var el = document.getElementById('facturaContenido');
+  if (!base) { el.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px 0;">Sin datos este mes</div>'; return; }
+  el.innerHTML =
+    '<div class="factura-row"><span class="label">% sobre beneficio</span><span class="valor">'+eur(pct)+'</span></div>'+
+    '<div class="factura-row"><span class="label">Horas de trabajo</span><span class="valor">'+eur(hrs)+'</span></div>'+
+    '<div class="factura-row"><span class="label">Piezas fabricadas</span><span class="valor">'+eur(pzs)+'</span></div>'+
+    '<div class="factura-row"><span class="label" style="color:var(--text2)">Base imponible</span><span class="valor" style="color:var(--text)">'+eur(base)+'</span></div>'+
+    '<div class="factura-row"><span class="label">IVA 21%</span><span class="valor">'+eur(iva)+'</span></div>'+
+    '<div class="factura-row total"><span>Total factura</span><span>'+eur(total)+'</span></div>';
+}
+
+// CALCULADORAS
+function calcPct() {
+  var f=fmtN(document.getElementById('pct-factura').value);
+  var m=fmtN(document.getElementById('pct-materiales').value);
+  var p=fmtN(document.getElementById('pct-porcentaje').value);
+  var el=document.getElementById('pct-preview');
+  if(!f){el.innerHTML='Introduce los datos para calcular';return;}
+  el.innerHTML='Beneficio: '+eur(f-m)+' x '+p+'% = <span class="result">'+eur((f-m)*(p/100))+'</span>';
+}
+function calcHrs() {
+  var h=fmtN(document.getElementById('hrs-horas').value);
+  var p=fmtN(document.getElementById('hrs-precio').value);
+  var el=document.getElementById('hrs-preview');
+  if(!h||!p){el.innerHTML='Introduce los datos para calcular';return;}
+  el.innerHTML=h+'h x '+eur(p)+'/h = <span class="result">'+eur(h*p)+'</span>';
+}
+function calcPzs() {
+  var mat=fmtN(document.getElementById('pzs-material').value);
+  var her=fmtN(document.getElementById('pzs-herramientas').value);
+  var h=fmtN(document.getElementById('pzs-horas').value);
+  var ph=fmtN(document.getElementById('pzs-preciohora').value);
+  var tra=fmtN(document.getElementById('pzs-transporte').value);
+  var el=document.getElementById('pzs-preview');
+  if(!mat&&!h){el.innerHTML='Introduce los datos para calcular';return;}
+  el.innerHTML='Mat '+eur(mat)+' + Her '+eur(her)+' + Horas '+eur(h*ph)+' + Transp '+eur(tra)+' = <span class="result">'+eur(mat+her+(h*ph)+tra)+'</span>';
+}
+
+// AÑADIR
+function addRegistro(r) {
+  var c=claveActual();
+  if(!datos[c]) datos[c]=[];
+  datos[c].push(r);
+  guardarDatos();
+  actualizarTodo();
+}
+function addPct() {
+  var f=fmtN(document.getElementById('pct-factura').value);
+  var m=fmtN(document.getElementById('pct-materiales').value);
+  var p=fmtN(document.getElementById('pct-porcentaje').value);
+  if(!f){alert('Introduce el importe de la factura');return;}
+  var imp=(f-m)*(p/100);
+  var desc=document.getElementById('pct-desc').value;
+  addRegistro({tipo:'pct',importe:imp,desc:desc||('Factura '+eur(f)),fecha:hoy()});
+  document.getElementById('pct-factura').value='';
+  document.getElementById('pct-materiales').value='';
+  document.getElementById('pct-desc').value='';
+  document.getElementById('pct-preview').innerHTML='Introduce los datos para calcular';
+  showToast('Registro añadido · '+eur(imp));
+}
+function addHrs() {
+  var h=fmtN(document.getElementById('hrs-horas').value);
+  var p=fmtN(document.getElementById('hrs-precio').value);
+  if(!h||!p){alert('Introduce horas y precio');return;}
+  var imp=h*p;
+  var desc=document.getElementById('hrs-desc').value;
+  var fi=document.getElementById('hrs-fecha').value;
+  var fecha=fi?new Date(fi).toLocaleDateString('es-ES'):hoy();
+  addRegistro({tipo:'hrs',importe:imp,desc:desc||(h+'h trabajadas'),fecha:fecha});
+  document.getElementById('hrs-horas').value='';
+  document.getElementById('hrs-desc').value='';
+  document.getElementById('hrs-preview').innerHTML='Introduce los datos para calcular';
+  showToast('Horas añadidas · '+eur(imp));
+}
+function addPzs() {
+  var mat=fmtN(document.getElementById('pzs-material').value);
+  var her=fmtN(document.getElementById('pzs-herramientas').value);
+  var h=fmtN(document.getElementById('pzs-horas').value);
+  var ph=fmtN(document.getElementById('pzs-preciohora').value);
+  var tra=fmtN(document.getElementById('pzs-transporte').value);
+  var nombre=document.getElementById('pzs-nombre').value;
+  var imp=mat+her+(h*ph)+tra;
+  if(!imp){alert('Introduce al menos un coste');return;}
+  addRegistro({tipo:'pzs',importe:imp,desc:nombre||'Pieza sin nombre',fecha:hoy()});
+  ['pzs-nombre','pzs-material','pzs-herramientas','pzs-horas','pzs-transporte'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('pzs-preview').innerHTML='Introduce los datos para calcular';
+  showToast('Pieza añadida · '+eur(imp));
+}
+
+// TIMER
+var timerInterval=null,timerStart=null,timerPausado=0,timerRunning=false;
+function toggleTimer() {
+  if(!timerRunning){
+    timerStart=Date.now()-timerPausado; timerRunning=true;
+    timerInterval=setInterval(updateTimerDisplay,1000);
+    document.getElementById('btnStartStop').textContent='Pausar';
+    document.getElementById('btnStartStop').className='btn-timer btn-pause';
+    document.getElementById('btnGuardar').style.display='block';
+    document.getElementById('timerEstado').textContent='Corriendo';
+    document.getElementById('timerClock').classList.add('running');
+  } else {
+    clearInterval(timerInterval); timerPausado=Date.now()-timerStart; timerRunning=false;
+    document.getElementById('btnStartStop').textContent='Reanudar';
+    document.getElementById('btnStartStop').className='btn-timer btn-start';
+    document.getElementById('timerEstado').textContent='Pausado';
+    document.getElementById('timerClock').classList.remove('running');
+  }
+}
+function updateTimerDisplay() {
+  var el=Date.now()-timerStart;
+  var h=Math.floor(el/3600000),m=Math.floor((el%3600000)/60000),s=Math.floor((el%60000)/1000);
+  document.getElementById('timerClock').textContent=
+    String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  var horas=el/3600000,precio=fmtN(document.getElementById('precioHoraTimer').value);
+  document.getElementById('timerImporte').textContent='= '+eur(horas*precio);
+}
+function guardarTimer() {
+  if(!timerStart) return;
+  clearInterval(timerInterval); timerRunning=false;
+  var el=timerPausado||(Date.now()-timerStart);
+  var horas=el/3600000,precio=fmtN(document.getElementById('precioHoraTimer').value),imp=horas*precio;
+  addRegistro({tipo:'hrs',importe:imp,desc:horas.toFixed(2)+'h (timer)',fecha:hoy()});
+  timerStart=null;timerPausado=0;
+  document.getElementById('timerClock').textContent='00:00:00';
+  document.getElementById('btnStartStop').textContent='Iniciar';
+  document.getElementById('btnStartStop').className='btn-timer btn-start';
+  document.getElementById('btnGuardar').style.display='none';
+  document.getElementById('timerEstado').textContent='Parado';
+  document.getElementById('timerImporte').textContent='= \u20AC0,00';
+  document.getElementById('timerClock').classList.remove('running');
+  showToast('Horas guardadas · '+eur(imp));
+}
+
+// TABS
+function showTab(id) {
+  var ids=['pct','hrs','pzs','lista','factura'];
+  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',ids[i]===id);});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('panel-'+id).classList.add('active');
+  if(id==='lista') actualizarLista();
+  if(id==='factura') actualizarFactura();
+}
+function actualizarTodo() { actualizarTotales(); actualizarLista(); actualizarFactura(); }
+
+// EXCEL
+function exportarExcel(modo) {
+  var TL={pct:'% Beneficio',hrs:'Horas',pzs:'Piezas fabricadas'};
+  var filas=[];
+  if(modo==='mes'){
+    registrosActuales().forEach(function(r){filas.push({Fecha:r.fecha,Tipo:TL[r.tipo]||r.tipo,Descripcion:r.desc||'','Importe (E)':r.importe,Mes:MESES[mesActual],Anio:anioActual});});
+  } else {
+    Object.keys(datos).forEach(function(clave){
+      var p=clave.split('-').map(Number);
+      (datos[clave]||[]).forEach(function(r){filas.push({Fecha:r.fecha,Tipo:TL[r.tipo]||r.tipo,Descripcion:r.desc||'','Importe (E)':r.importe,Mes:MESES[p[1]],Anio:p[0]});});
+    });
+  }
+  if(!filas.length){showToast('Sin datos para exportar');return;}
+  var pf=function(f){var p=f.split('/');if(p.length!==3)return 0;var a=p[2].length===2?2000+parseInt(p[2]):parseInt(p[2]);return new Date(a,parseInt(p[1])-1,parseInt(p[0])).getTime();};
+  filas.sort(function(a,b){return pf(a.Fecha)-pf(b.Fecha);});
+  var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(filas);
+  ws['!cols']=[{wch:12},{wch:20},{wch:36},{wch:14},{wch:14},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws,'Registros');
+  XLSX.writeFile(wb,modo==='mes'?'ingresos_'+MESES[mesActual].toLowerCase()+'_'+anioActual+'.xlsx':'ingresos_historico_'+anioActual+'.xlsx');
+  showToast('Excel exportado');
+}
+
+// INIT
+initMesSelect();
+document.getElementById('hrs-fecha').value=new Date().toISOString().split('T')[0];
+cargarDatos();
+</script>
+</body>
+</html>
