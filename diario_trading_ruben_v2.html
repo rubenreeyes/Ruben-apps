@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Trading Journal · Rubén</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+  :root {
+    --bg:#080b0f; --surface:#0d1117; --surface2:#141a22; --surface3:#1c2430;
+    --border:#1e2d3d; --accent:#00d4ff; --green:#00e676; --red:#ff3d57;
+    --gold:#ffd54f; --purple:#b39ddb; --text:#e0eaf4; --text2:#7a9ab5; --text3:#3a5470; --radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;position:relative;z-index:1;}
+  body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;min-height:100vh;max-width:440px;margin:0 auto;}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+
+  /* HEADER */
+  .header{padding:16px 18px 12px;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:100;}
+  .header-top{display:flex;justify-content:space-between;align-items:center;}
+  .header h1{font-family:'Playfair Display',serif;font-style:italic;font-size:19px;}
+  .header h1 span{color:var(--accent);font-style:normal;}
+  .saving-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);display:inline-block;margin-left:5px;transition:background .3s;vertical-align:middle;}
+  .saving-dot.saving{background:var(--accent);animation:blink .6s ease-in-out infinite;}
+  .saving-dot.saved{background:var(--green);}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+  /* TABS PRINCIPALES */
+  .main-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:57px;z-index:99;overflow-x:auto;}
+  .main-tab{flex-shrink:0;padding:10px 12px;font-size:9px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;text-transform:uppercase;letter-spacing:1px;transition:all .15s;white-space:nowrap;}
+  .main-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .main-tab.fondeo-tab{color:var(--gold);}
+  .main-tab.fondeo-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+  .content{padding:14px 18px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  /* STATS */
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:11px;}
+  .stat-card.wide{grid-column:span 2;}
+  .stat-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;}
+  .stat-value{font-family:'Playfair Display',serif;font-size:21px;}
+  .stat-value.green{color:var(--green);}
+  .stat-value.red{color:var(--red);}
+  .stat-value.accent{color:var(--accent);}
+  .stat-value.gold{color:var(--gold);}
+  .stat-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+  .pnl-bar{height:3px;background:var(--surface3);border-radius:2px;margin-top:7px;overflow:hidden;}
+  .pnl-fill{height:100%;border-radius:2px;transition:width .5s ease;}
+
+  /* FORMS */
+  .form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;}
+  .form-card h3{font-family:'Playfair Display',serif;font-weight:400;font-size:14px;color:var(--text2);margin-bottom:12px;}
+  .field{margin-bottom:9px;}
+  .field label{display:block;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+  .field input,.field select,.field textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;color:var(--text);font-family:'Space Mono',monospace;font-size:12px;outline:none;transition:border-color .15s;}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+  .field select option{background:var(--surface2);}
+  .field textarea{resize:none;height:52px;}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .field-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+
+  .dir-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .dir-btn{padding:9px;border-radius:8px;border:1px solid var(--border);font-family:'Space Mono',monospace;font-size:11px;cursor:pointer;text-align:center;transition:all .15s;background:var(--surface2);color:var(--text3);}
+  .dir-btn.long.active{background:rgba(0,230,118,.15);border-color:var(--green);color:var(--green);}
+  .dir-btn.short.active{background:rgba(255,61,87,.15);border-color:var(--red);color:var(--red);}
+
+  .resultado-toggle{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:9px;}
+  .res-btn{padding:9px 4px;border-radius:8px;border:1px solid var(--border);font-family:'Space Mono',monospace;font-size:9px;cursor:pointer;text-align:center;transition:all .15s;background:var(--surface2);color:var(--text3);}
+  .res-btn.win.active{background:rgba(0,230,118,.15);border-color:var(--green);color:var(--green);}
+  .res-btn.loss.active{background:rgba(255,61,87,.15);border-color:var(--red);color:var(--red);}
+  .res-btn.be.active{background:rgba(255,213,79,.15);border-color:var(--gold);color:var(--gold);}
+  .res-btn.open.active{background:rgba(0,212,255,.15);border-color:var(--accent);color:var(--accent);}
+
+  .calc-preview{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:9px;font-size:11px;color:var(--text2);min-height:32px;}
+  .calc-rr{color:var(--gold);font-size:13px;font-weight:700;}
+  .calc-green{color:var(--green);}
+  .calc-red{color:var(--red);}
+
+  .btn-add{width:100%;padding:12px;background:var(--accent);color:#000;border:none;border-radius:10px;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:all .15s;}
+  .btn-add:active{transform:scale(.98);opacity:.85;}
+  .btn-secondary{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+
+  /* OPERACIONES */
+  .filtro-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+  .filtro-btn{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);font-family:'Space Mono',monospace;font-size:9px;cursor:pointer;transition:all .15s;}
+  .filtro-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.08);}
+
+  .op-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:11px 13px;margin-bottom:8px;border-left:3px solid var(--border);animation:slideIn .2s ease;}
+  .op-item.win{border-left-color:var(--green);}
+  .op-item.loss{border-left-color:var(--red);}
+  .op-item.be{border-left-color:var(--gold);}
+  .op-item.open{border-left-color:var(--accent);}
+  @keyframes slideIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+
+  .op-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;}
+  .op-activo{font-family:'Playfair Display',serif;font-size:15px;}
+  .op-dir{font-size:9px;padding:2px 6px;border-radius:4px;margin-left:5px;}
+  .op-dir.long{background:rgba(0,230,118,.15);color:var(--green);}
+  .op-dir.short{background:rgba(255,61,87,.15);color:var(--red);}
+  .op-pnl{font-family:'Playfair Display',serif;font-size:15px;}
+  .op-pnl.green{color:var(--green);}
+  .op-pnl.red{color:var(--red);}
+  .op-pnl.gold{color:var(--gold);}
+  .op-pnl.accent{color:var(--accent);}
+  .op-details{display:flex;gap:10px;font-size:10px;color:var(--text3);margin-bottom:3px;flex-wrap:wrap;}
+  .op-nota{font-size:10px;color:var(--text2);font-style:italic;margin-top:3px;}
+  .op-footer{display:flex;justify-content:space-between;align-items:center;margin-top:5px;}
+  .op-cuenta-badge{font-size:9px;padding:2px 7px;border-radius:4px;background:var(--surface2);color:var(--text3);}
+  .op-fecha{font-size:9px;color:var(--text3);}
+  .btn-del{background:none;border:none;color:var(--text3);font-size:14px;cursor:pointer;padding:0 3px;}
+  .btn-del:active{color:var(--red);}
+
+  .empty-state{text-align:center;padding:28px 0;color:var(--text3);font-size:11px;}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;}
+
+  /* CUENTAS FONDEO */
+  .fondeo-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .fondeo-header h3{font-family:'Playfair Display',serif;font-weight:400;font-size:15px;color:var(--text2);}
+
+  .cuenta-fondeo-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;}
+  .cf-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+  .cf-nombre{font-family:'Playfair Display',serif;font-size:16px;color:var(--text);}
+  .cf-estado{font-size:9px;padding:3px 8px;border-radius:4px;}
+  .cf-estado.challenge{background:rgba(255,213,79,.15);color:var(--gold);}
+  .cf-estado.aprobada{background:rgba(0,230,118,.15);color:var(--green);}
+  .cf-estado.fallida{background:rgba(255,61,87,.15);color:var(--red);}
+
+  .cf-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;}
+  .cf-stat{text-align:center;background:var(--surface2);border-radius:8px;padding:8px 4px;}
+  .cf-stat-label{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;}
+  .cf-stat-val{font-size:13px;color:var(--text);}
+
+  .progress-wrap{margin-bottom:8px;}
+  .progress-label{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:4px;}
+  .progress-bar{height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;}
+  .progress-fill{height:100%;border-radius:3px;transition:width .5s ease;}
+  .progress-fill.objetivo{background:var(--green);}
+  .progress-fill.drawdown{background:var(--red);}
+
+  .cf-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+  .btn-cf-small{padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);font-family:'Space Mono',monospace;font-size:9px;cursor:pointer;transition:all .15s;}
+  .btn-cf-small:active{border-color:var(--accent);color:var(--accent);}
+  .btn-cf-del{background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;}
+  .btn-cf-del:active{color:var(--red);}
+
+  /* CAPITAL PERSONAL */
+  .capital-display{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;text-align:center;}
+  .capital-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;}
+  .capital-amount{font-family:'Playfair Display',serif;font-size:36px;color:var(--green);letter-spacing:-1px;}
+  .capital-pnl{font-size:11px;color:var(--text3);margin-top:4px;}
+
+  .historial-item{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 13px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center;}
+  .hi-desc{font-size:11px;color:var(--text2);}
+  .hi-fecha{font-size:9px;color:var(--text3);margin-top:2px;}
+  .hi-amount{font-family:'Playfair Display',serif;font-size:15px;}
+
+  /* ANALISIS */
+  .activo-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;}
+  .activo-nombre{font-family:'Playfair Display',serif;font-size:15px;margin-bottom:8px;color:var(--accent);}
+  .activo-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+  .ast{text-align:center;}
+  .ast-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;}
+  .ast-val{font-size:14px;margin-top:2px;}
+
+  .section-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;margin-top:4px;}
+
+  /* EXPORT */
+  .export-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+  .btn-export{padding:10px 8px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);border-radius:8px;font-family:'Space Mono',monospace;font-size:9px;cursor:pointer;transition:all .15s;text-align:center;}
+  .btn-export:active{border-color:var(--accent2);color:var(--green);}
+
+  /* MODAL */
+  .modal-overlay{position:fixed;inset:0;background:rgba(8,11,15,.9);z-index:500;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease;}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px 16px 0 0;padding:20px 18px;width:100%;max-width:440px;max-height:85vh;overflow-y:auto;}
+  .modal h3{font-family:'Playfair Display',serif;font-weight:400;font-size:16px;color:var(--text2);margin-bottom:14px;}
+  .modal-close{position:absolute;top:16px;right:18px;background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--accent);color:#000;padding:9px 18px;border-radius:20px;font-size:11px;font-weight:700;transition:transform .3s ease;z-index:999;white-space:nowrap;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+
+  .loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:12px;}
+  .spinner{width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-overlay span{font-size:10px;color:var(--text3);}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <span>Cargando journal...</span>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <h1><span>Journal</span> · Rubén <span class="saving-dot" id="savingDot"></span></h1>
+  </div>
+</div>
+
+<!-- TABS PRINCIPALES (dinámicas) -->
+<div class="main-tabs" id="mainTabs"></div>
+
+<div class="content" id="mainContent"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── ESTADO ───────────────────────────────────────────
+let operaciones = [];
+let cuentasFondeo = []; // [{id, nombre, capital, drawdownMax, objetivo, pnlActual, estado}]
+let capitalPersonal = { actual: 7000, historial: [] };
+let tabActiva = 'resumen';
+let opFiltro = 'todas';
+let dirActual = 'long';
+let resActual = null;
+let saveTimeout = null;
+let editIdx = null;
+
+// ─── STORAGE ──────────────────────────────────────────
+function cargarDatos() {
+  try {
+    const raw = localStorage.getItem('ruben_trading_v2');
+    if (raw) {
+      const d = JSON.parse(raw);
+      operaciones = d.operaciones || [];
+      cuentasFondeo = d.cuentasFondeo || [];
+      capitalPersonal = d.capitalPersonal || { actual: 7000, historial: [] };
+    }
+  } catch(e) {}
+  document.getElementById('loadingOverlay').style.display = 'none';
+  renderTabs();
+  renderTab(tabActiva);
+}
+
+function persistir() {
+  const dot = document.getElementById('savingDot');
+  dot.className = 'saving-dot saving';
+  try {
+    localStorage.setItem('ruben_trading_v2', JSON.stringify({ operaciones, cuentasFondeo, capitalPersonal }));
+    dot.className = 'saving-dot saved';
+    setTimeout(() => dot.className = 'saving-dot', 2000);
+  } catch(e) { dot.className = 'saving-dot'; }
+}
+function guardar() {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(persistir, 800);
+}
+
+// ─── TABS ─────────────────────────────────────────────
+function renderTabs() {
+  const tabs = [
+    { id: 'resumen', label: 'Resumen' },
+    { id: 'nueva', label: 'Nueva op.' },
+    { id: 'ops', label: 'Operaciones' },
+    { id: 'analisis', label: 'Análisis' },
+    { id: 'personal', label: '💰 Personal' },
+  ];
+  cuentasFondeo.forEach(c => tabs.push({ id: 'fondeo_' + c.id, label: c.nombre, fondeo: true }));
+  tabs.push({ id: 'cuentas', label: '+ Fondeo' });
+
+  const el = document.getElementById('mainTabs');
+  el.innerHTML = tabs.map(t => `
+    <div class="main-tab ${t.fondeo ? 'fondeo-tab' : ''} ${tabActiva === t.id ? 'active' : ''}"
+         onclick="switchTab('${t.id}')">${t.label}</div>
+  `).join('');
+}
+
+function switchTab(id) {
+  tabActiva = id;
+  renderTabs();
+  renderTab(id);
+}
+
+function renderTab(id) {
+  const el = document.getElementById('mainContent');
+  if (id === 'resumen') el.innerHTML = renderResumen();
+  else if (id === 'nueva') el.innerHTML = renderNuevaOp();
+  else if (id === 'ops') el.innerHTML = renderOps();
+  else if (id === 'analisis') el.innerHTML = renderAnalisis();
+  else if (id === 'personal') el.innerHTML = renderPersonal();
+  else if (id === 'cuentas') el.innerHTML = renderGestionCuentas();
+  else if (id.startsWith('fondeo_')) {
+    const cid = id.replace('fondeo_', '');
+    el.innerHTML = renderFondeo(cid);
+  }
+  bindEvents(id);
+}
+
+// ─── HELPERS ──────────────────────────────────────────
+function fmt(n) { return (n>=0?'+':'')+n.toFixed(2); }
+function fmtN(v) { return parseFloat(v)||0; }
+function hoy() { return new Date().toLocaleDateString('es-ES'); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+
+function opsPorCuenta(cid) {
+  return operaciones.filter(o => o.cuentaId === cid);
+}
+
+// ─── RESUMEN ──────────────────────────────────────────
+function renderResumen() {
+  const ops = operaciones.filter(o => o.resultado !== 'open');
+  const wins = ops.filter(o => o.resultado === 'win').length;
+  const total = ops.length;
+  const pnl = ops.reduce((s,o) => s+(o.pnl||0), 0);
+  const rrs = ops.filter(o=>o.rr).map(o=>o.rr);
+  const rrMedio = rrs.length ? rrs.reduce((a,b)=>a+b,0)/rrs.length : null;
+  const wr = total ? Math.round(wins/total*100) : null;
+  const pnlColor = pnl>0?'green':pnl<0?'red':'';
+  const pending = operaciones.filter(o=>o.resultado==='open').length;
+
+  return `<div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">P&L Total</div>
+      <div class="stat-value ${pnlColor}">€${pnl.toFixed(0)}</div>
+      <div class="pnl-bar"><div class="pnl-fill" style="width:${Math.min(Math.abs(pnl)/300*50+50,100)}%;background:${pnl>=0?'var(--green)':'var(--red)'}"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Winrate</div>
+      <div class="stat-value accent">${wr!=null?wr+'%':'—'}</div>
+      <div class="stat-sub">${total} cerradas · ${pending} abiertas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">R:R Medio</div>
+      <div class="stat-value accent">${rrMedio?rrMedio.toFixed(2)+'R':'—'}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Capital personal</div>
+      <div class="stat-value gold">€${capitalPersonal.actual.toLocaleString('es-ES')}</div>
+    </div>
+  </div>
+  ${cuentasFondeo.length ? `
+    <div class="section-label">Cuentas de fondeo</div>
+    ${cuentasFondeo.map(c => {
+      const opsC = opsPorCuenta(c.id).filter(o=>o.resultado!=='open');
+      const pnlC = opsC.reduce((s,o)=>s+(o.pnl||0),0);
+      const progObj = Math.min(Math.max((pnlC/c.objetivo)*100,0),100);
+      const progDD = Math.min(Math.max((Math.abs(Math.min(pnlC,0))/c.drawdownMax)*100,0),100);
+      return `<div class="cuenta-fondeo-card" style="cursor:pointer" onclick="switchTab('fondeo_${c.id}')">
+        <div class="cf-header">
+          <div class="cf-nombre">${c.nombre}</div>
+          <div class="cf-estado ${c.estado}">${c.estado === 'challenge' ? '🔥 Challenge' : c.estado === 'aprobada' ? '✓ Aprobada' : '✗ Fallida'}</div>
+        </div>
+        <div class="cf-stats">
+          <div class="cf-stat"><div class="cf-stat-label">Capital</div><div class="cf-stat-val">€${c.capital.toLocaleString()}</div></div>
+          <div class="cf-stat"><div class="cf-stat-label">P&L</div><div class="cf-stat-val" style="color:${pnlC>=0?'var(--green)':'var(--red)'}">€${pnlC.toFixed(0)}</div></div>
+          <div class="cf-stat"><div class="cf-stat-label">Objetivo</div><div class="cf-stat-val" style="color:var(--gold)">${progObj.toFixed(0)}%</div></div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-label"><span>Objetivo ${c.objetivo}%</span><span style="color:var(--green)">€${(c.capital*c.objetivo/100).toFixed(0)}</span></div>
+          <div class="progress-bar"><div class="progress-fill objetivo" style="width:${progObj}%"></div></div>
+        </div>
+      </div>`;
+    }).join('')}
+  ` : '<div class="empty-state"><div class="icon">📋</div>Añade cuentas de fondeo desde la pestaña "+ Fondeo"</div>'}
+  <div class="form-card" style="margin-top:4px;">
+    <h3>Exportar Excel</h3>
+    <div class="export-grid">
+      <button class="btn-export" onclick="exportarExcel('ops')">📊 Operaciones</button>
+      <button class="btn-export" onclick="exportarExcel('fondeo')">🏦 Fondeo</button>
+    </div>
+  </div>`;
+}
+
+// ─── NUEVA OPERACIÓN ──────────────────────────────────
+function renderNuevaOp(op) {
+  const cuentasOpts = [
+    `<option value="personal">💰 Personal (Quantfury)</option>`,
+    ...cuentasFondeo.map(c => `<option value="${c.id}">${c.nombre}</option>`)
+  ].join('');
+
+  const e = op || {};
+  return `<div class="form-card">
+    <h3>${editIdx !== null ? '✎ Editar operación' : '📈 Nueva operación'}</h3>
+    <div class="field-row">
+      <div class="field">
+        <label>Activo</label>
+        <select id="op-activo">
+          ${['TSLA','XAUUSD','EURUSD','Otro'].map(a=>`<option ${e.activo===a?'selected':''}>${a}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Cuenta</label>
+        <select id="op-cuenta">${cuentasOpts}</select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Dirección</label>
+      <div class="dir-toggle">
+        <div class="dir-btn long ${(!e.direccion||e.direccion==='long')?'active':''}" id="dirLong" onclick="setDir('long')">▲ LONG</div>
+        <div class="dir-btn short ${e.direccion==='short'?'active':''}" id="dirShort" onclick="setDir('short')">▼ SHORT</div>
+      </div>
+    </div>
+    <div class="field-row3">
+      <div class="field"><label>Entrada</label><input type="number" id="op-entrada" value="${e.entrada||''}" placeholder="0.00" step="0.0001" oninput="calcRR()"></div>
+      <div class="field"><label>Stop Loss</label><input type="number" id="op-sl" value="${e.sl||''}" placeholder="0.00" step="0.0001" oninput="calcRR()"></div>
+      <div class="field"><label>Take Profit</label><input type="number" id="op-tp" value="${e.tp||''}" placeholder="0.00" step="0.0001" oninput="calcRR()"></div>
+    </div>
+    <div class="calc-preview" id="rr-preview">Introduce entrada, SL y TP para calcular R:R</div>
+    <div class="field">
+      <label>Resultado</label>
+      <div class="resultado-toggle">
+        <div class="res-btn win ${e.resultado==='win'?'active':''}" id="resWin" onclick="setRes('win')">✓ Win</div>
+        <div class="res-btn loss ${e.resultado==='loss'?'active':''}" id="resLoss" onclick="setRes('loss')">✗ Loss</div>
+        <div class="res-btn be ${e.resultado==='be'?'active':''}" id="resBe" onclick="setRes('be')">— BE</div>
+        <div class="res-btn open ${e.resultado==='open'||!e.resultado?'active':''}" id="resOpen" onclick="setRes('open')">⏳ Pend.</div>
+      </div>
+    </div>
+    <div class="field"><label>P&L en € (si ya cerró)</label><input type="number" id="op-pnl" value="${e.pnl!=null?e.pnl:''}" placeholder="ej. 45.50 o -30.00" step="0.01"></div>
+    <div class="field"><label>Setup / motivo técnico</label><textarea id="op-setup" placeholder="ej. Ruptura de resistencia...">${e.setup||''}</textarea></div>
+    <div class="field"><label>Fecha</label><input type="date" id="op-fecha" value="${e._fechaISO||new Date().toISOString().split('T')[0]}"></div>
+    <button class="btn-add" id="btnGuardarOp" onclick="guardarOp()">${editIdx !== null ? 'Guardar cambios' : '+ Registrar operación'}</button>
+    ${editIdx !== null ? `<button class="btn-add btn-secondary" style="margin-top:8px" onclick="cancelarEdicion()">Cancelar</button>` : ''}
+  </div>`;
+}
+
+function bindEvents(id) {
+  if (id === 'nueva') {
+    dirActual = 'long';
+    if (resActual === null) resActual = 'open';
+    calcRR();
+    // Restaurar cuenta seleccionada si edición
+  }
+}
+
+function setDir(d) {
+  dirActual = d;
+  const l = document.getElementById('dirLong');
+  const s = document.getElementById('dirShort');
+  if (l) l.classList.toggle('active', d==='long');
+  if (s) s.classList.toggle('active', d==='short');
+  calcRR();
+}
+
+function setRes(r) {
+  resActual = r;
+  ['win','loss','be','open'].forEach(x => {
+    const el = document.getElementById('res'+x.charAt(0).toUpperCase()+x.slice(1));
+    if (el) el.classList.toggle('active', x===r);
+  });
+}
+
+function calcRR() {
+  const entrada = fmtN(document.getElementById('op-entrada')?.value);
+  const sl = fmtN(document.getElementById('op-sl')?.value);
+  const tp = fmtN(document.getElementById('op-tp')?.value);
+  const el = document.getElementById('rr-preview');
+  if (!el) return;
+  if (!entrada||!sl||!tp) { el.innerHTML='Introduce entrada, SL y TP para calcular R:R'; return; }
+  const riesgo = Math.abs(entrada-sl);
+  const beneficio = Math.abs(tp-entrada);
+  if (!riesgo) { el.innerHTML='SL igual a entrada'; return; }
+  const rr = beneficio/riesgo;
+  const color = rr>=2?'calc-green':rr>=1?'calc-rr':'calc-red';
+  el.innerHTML=`Riesgo: ${riesgo.toFixed(4)} · Ben: ${beneficio.toFixed(4)} · R:R = <span class="${color}">${rr.toFixed(2)}R</span>`;
+}
+
+function guardarOp() {
+  const entrada = fmtN(document.getElementById('op-entrada').value);
+  const sl = fmtN(document.getElementById('op-sl').value);
+  const tp = fmtN(document.getElementById('op-tp').value);
+  let rr = null;
+  if (entrada&&sl&&tp) { const ri=Math.abs(entrada-sl); const be=Math.abs(tp-entrada); if(ri) rr=be/ri; }
+  const fechaVal = document.getElementById('op-fecha').value;
+  const op = {
+    id: editIdx !== null ? operaciones[editIdx].id : uid(),
+    activo: document.getElementById('op-activo').value,
+    cuentaId: document.getElementById('op-cuenta').value,
+    direccion: dirActual,
+    entrada: entrada||null, sl: sl||null, tp: tp||null, rr,
+    resultado: resActual||'open',
+    pnl: parseFloat(document.getElementById('op-pnl').value)||null,
+    setup: document.getElementById('op-setup').value,
+    fecha: fechaVal ? new Date(fechaVal).toLocaleDateString('es-ES') : hoy(),
+    _fechaISO: fechaVal
+  };
+  if (editIdx !== null) { operaciones[editIdx] = op; editIdx = null; }
+  else operaciones.push(op);
+  guardar();
+  resActual = 'open';
+  showToast(op.resultado==='win'?'✓ Win guardado':op.resultado==='loss'?'✗ Loss guardado':op.resultado==='open'?'⏳ Operación pendiente guardada':'— BE guardado');
+  switchTab('ops');
+}
+
+function cancelarEdicion() { editIdx = null; resActual = 'open'; switchTab('ops'); }
+
+// ─── OPERACIONES ──────────────────────────────────────
+function renderOps() {
+  const activos = [...new Set(operaciones.map(o=>o.activo))];
+  const filtros = ['todas','win','loss','open',...activos];
+  let ops = [...operaciones];
+  if (opFiltro !== 'todas') {
+    if (['win','loss','be','open'].includes(opFiltro)) ops = ops.filter(o=>o.resultado===opFiltro);
+    else ops = ops.filter(o=>o.activo===opFiltro);
+  }
+
+  const getCuentaNombre = id => {
+    if (id==='personal') return '💰 Personal';
+    const c = cuentasFondeo.find(x=>x.id===id);
+    return c ? c.nombre : id;
+  };
+
+  return `<div class="filtro-row">${filtros.map(f=>`
+    <div class="filtro-btn ${opFiltro===f?'active':''}" onclick="setFiltroOps('${f}')">${f==='open'?'⏳ Pend.':f==='win'?'✓ Win':f==='loss'?'✗ Loss':f}</div>
+  `).join('')}</div>
+  ${!ops.length ? '<div class="empty-state"><div class="icon">📊</div>Sin operaciones</div>' :
+    [...ops].reverse().map(o => {
+      const idx = operaciones.indexOf(o);
+      const pnlColor = o.pnl>0?'green':o.pnl<0?'red':o.resultado==='be'?'gold':'accent';
+      const pnlText = o.pnl!=null?(o.pnl>=0?'+':'')+'€'+o.pnl.toFixed(2):o.resultado==='open'?'ABIERTA':'—';
+      return `<div class="op-item ${o.resultado}">
+        <div class="op-header">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <span class="op-activo">${o.activo}</span>
+            <span class="op-dir ${o.direccion}">${o.direccion==='long'?'▲':'▼'} ${o.direccion.toUpperCase()}</span>
+          </div>
+          <span class="op-pnl ${pnlColor}">${pnlText}</span>
+        </div>
+        <div class="op-details">
+          ${o.entrada?`<span>IN: ${o.entrada}</span>`:''}
+          ${o.sl?`<span>SL: ${o.sl}</span>`:''}
+          ${o.tp?`<span>TP: ${o.tp}</span>`:''}
+          ${o.rr?`<span style="color:var(--gold)">${o.rr.toFixed(2)}R</span>`:''}
+        </div>
+        ${o.setup?`<div class="op-nota">${o.setup}</div>`:''}
+        <div class="op-footer">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span class="op-cuenta-badge">${getCuentaNombre(o.cuentaId)}</span>
+            <span class="op-fecha">${o.fecha}</span>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-del" style="font-size:12px;color:var(--text3)" onclick="editarOp(${idx})">✎</button>
+            <button class="btn-del" onclick="eliminarOp(${idx})">×</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+function setFiltroOps(f) { opFiltro = f; renderTab('ops'); }
+
+function editarOp(idx) {
+  editIdx = idx;
+  const o = operaciones[idx];
+  dirActual = o.direccion;
+  resActual = o.resultado;
+  switchTab('nueva');
+  // Cargar valores después de render
+  setTimeout(() => {
+    const sel = document.getElementById('op-cuenta');
+    if (sel) sel.value = o.cuentaId;
+    setDir(o.direccion);
+    setRes(o.resultado);
+    calcRR();
+  }, 50);
+}
+
+function eliminarOp(idx) {
+  if (!confirm('¿Eliminar esta operación?')) return;
+  operaciones.splice(idx, 1);
+  guardar();
+  renderTab('ops');
+  showToast('Operación eliminada');
+}
+
+// ─── ANÁLISIS ─────────────────────────────────────────
+function renderAnalisis() {
+  const ops = operaciones.filter(o=>o.resultado!=='open');
+  const activos = [...new Set(ops.map(o=>o.activo))];
+
+  const renderGrupo = (keys, getKey, getLabel) => keys.map(k => {
+    const sub = ops.filter(o=>getKey(o)===k);
+    const wins = sub.filter(o=>o.resultado==='win').length;
+    const pnl = sub.reduce((s,o)=>s+(o.pnl||0),0);
+    const wr = sub.length?Math.round(wins/sub.length*100):0;
+    return `<div class="activo-card">
+      <div class="activo-nombre">${getLabel(k)}</div>
+      <div class="activo-stats">
+        <div class="ast"><div class="ast-label">Ops</div><div class="ast-val">${sub.length}</div></div>
+        <div class="ast"><div class="ast-label">Winrate</div><div class="ast-val" style="color:${wr>=50?'var(--green)':'var(--red)'}">${wr}%</div></div>
+        <div class="ast"><div class="ast-label">P&L</div><div class="ast-val" style="color:${pnl>=0?'var(--green)':'var(--red)'}">€${pnl.toFixed(0)}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const cuentaIds = [...new Set(ops.map(o=>o.cuentaId))];
+  const getCuentaNombre = id => { if(id==='personal') return '💰 Personal'; const c=cuentasFondeo.find(x=>x.id===id); return c?c.nombre:id; };
+
+  return `<div class="section-label">Por activo</div>
+    ${activos.length ? renderGrupo(activos, o=>o.activo, k=>k) : '<div class="empty-state"><div class="icon">📊</div>Sin datos</div>'}
+    <div class="section-label" style="margin-top:14px;">Por cuenta</div>
+    ${cuentaIds.length ? renderGrupo(cuentaIds, o=>o.cuentaId, getCuentaNombre) : '<div class="empty-state"><div class="icon">📊</div>Sin datos</div>'}`;
+}
+
+// ─── CAPITAL PERSONAL ─────────────────────────────────
+function renderPersonal() {
+  const hist = capitalPersonal.historial || [];
+  const inicial = 7000;
+  const cambio = capitalPersonal.actual - inicial;
+  return `<div class="capital-display">
+    <div class="capital-label">Capital personal · Quantfury</div>
+    <div class="capital-amount">€${capitalPersonal.actual.toLocaleString('es-ES')}</div>
+    <div class="capital-pnl" style="color:${cambio>=0?'var(--green)':'var(--red)'}">
+      ${cambio>=0?'+':''}€${cambio.toFixed(2)} desde inicio
+    </div>
+  </div>
+  <div class="form-card">
+    <h3>Actualizar capital</h3>
+    <div class="field"><label>Capital actual €</label><input type="number" id="cap-nuevo" value="${capitalPersonal.actual}" step="0.01"></div>
+    <div class="field"><label>Nota (opcional)</label><input type="text" id="cap-nota" placeholder="ej. Depósito, retirada, P&L..."></div>
+    <button class="btn-add" onclick="actualizarCapital()">Actualizar</button>
+  </div>
+  ${hist.length ? `
+    <div class="section-label">Historial</div>
+    ${[...hist].reverse().map(h => `
+      <div class="historial-item">
+        <div><div class="hi-desc">${h.nota||'Actualización'}</div><div class="hi-fecha">${h.fecha}</div></div>
+        <div class="hi-amount" style="color:${h.cambio>=0?'var(--green)':'var(--red)'}">
+          ${h.cambio>=0?'+':''}€${h.cambio.toFixed(2)}<br>
+          <span style="font-size:11px;color:var(--text3)">→ €${h.nuevo.toLocaleString()}</span>
+        </div>
+      </div>
+    `).join('')}
+  ` : ''}`;
+}
+
+function actualizarCapital() {
+  const nuevo = fmtN(document.getElementById('cap-nuevo').value);
+  const nota = document.getElementById('cap-nota').value;
+  if (!nuevo) return;
+  const cambio = nuevo - capitalPersonal.actual;
+  capitalPersonal.historial.push({ fecha: hoy(), anterior: capitalPersonal.actual, nuevo, cambio, nota });
+  capitalPersonal.actual = nuevo;
+  guardar();
+  showToast('✓ Capital actualizado · €' + nuevo.toLocaleString());
+  renderTab('personal');
+}
+
+// ─── FONDEO INDIVIDUAL ────────────────────────────────
+function renderFondeo(cid) {
+  const c = cuentasFondeo.find(x=>x.id===cid);
+  if (!c) return '<div class="empty-state"><div class="icon">❓</div>Cuenta no encontrada</div>';
+
+  const ops = opsPorCuenta(cid).filter(o=>o.resultado!=='open');
+  const pending = opsPorCuenta(cid).filter(o=>o.resultado==='open');
+  const pnl = ops.reduce((s,o)=>s+(o.pnl||0),0);
+  const wins = ops.filter(o=>o.resultado==='win').length;
+  const wr = ops.length?Math.round(wins/ops.length*100):0;
+
+  const objetivoEUR = c.capital * c.objetivo / 100;
+  const ddMaxEUR = c.capital * c.drawdownMax / 100;
+  const progObj = Math.min(Math.max((pnl/objetivoEUR)*100,0),100);
+  const ddActual = Math.abs(Math.min(pnl,0));
+  const progDD = Math.min((ddActual/ddMaxEUR)*100,100);
+  const restante = Math.max(objetivoEUR - pnl, 0);
+
+  return `<div class="cuenta-fondeo-card">
+    <div class="cf-header">
+      <div class="cf-nombre">${c.nombre}</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <select style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-family:'Space Mono',monospace;font-size:9px;outline:none;" onchange="cambiarEstadoCuenta('${cid}',this.value)">
+          <option value="challenge" ${c.estado==='challenge'?'selected':''}>🔥 Challenge</option>
+          <option value="aprobada" ${c.estado==='aprobada'?'selected':''}>✓ Aprobada</option>
+          <option value="fallida" ${c.estado==='fallida'?'selected':''}>✗ Fallida</option>
+        </select>
+      </div>
+    </div>
+    <div class="cf-stats">
+      <div class="cf-stat"><div class="cf-stat-label">Capital</div><div class="cf-stat-val">€${c.capital.toLocaleString()}</div></div>
+      <div class="cf-stat"><div class="cf-stat-label">P&L</div><div class="cf-stat-val" style="color:${pnl>=0?'var(--green)':'var(--red)'}">€${pnl.toFixed(0)}</div></div>
+      <div class="cf-stat"><div class="cf-stat-label">Winrate</div><div class="cf-stat-val">${ops.length?wr+'%':'—'}</div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>🎯 Objetivo (${c.objetivo}%)</span><span style="color:var(--green)">€${pnl.toFixed(0)} / €${objetivoEUR.toFixed(0)}</span></div>
+      <div class="progress-bar"><div class="progress-fill objetivo" style="width:${progObj}%"></div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>⚠️ Drawdown (${c.drawdownMax}% max)</span><span style="color:${progDD>70?'var(--red)':'var(--text3)'}">€${ddActual.toFixed(0)} / €${ddMaxEUR.toFixed(0)}</span></div>
+      <div class="progress-bar"><div class="progress-fill drawdown" style="width:${progDD}%"></div></div>
+    </div>
+    ${restante>0?`<div style="text-align:center;font-size:11px;color:var(--gold);margin-top:6px;">Faltan €${restante.toFixed(0)} para aprobar</div>`:'<div style="text-align:center;font-size:11px;color:var(--green);margin-top:6px;">🎉 Objetivo alcanzado</div>'}
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">Operaciones</div><div class="stat-value accent">${ops.length}</div><div class="stat-sub">${pending.length} pendientes</div></div>
+    <div class="stat-card"><div class="stat-label">Quedan para obj.</div><div class="stat-value gold">€${restante.toFixed(0)}</div></div>
+  </div>
+
+  <button class="btn-add" style="margin-bottom:10px" onclick="nuevaOpCuenta('${cid}')">+ Nueva operación en esta cuenta</button>
+
+  <div class="section-label">Operaciones</div>
+  ${[...opsPorCuenta(cid)].reverse().map(o => {
+    const idx = operaciones.indexOf(o);
+    const pnlColor = o.pnl>0?'green':o.pnl<0?'red':o.resultado==='be'?'gold':'accent';
+    const pnlText = o.pnl!=null?(o.pnl>=0?'+':'')+'€'+o.pnl.toFixed(2):o.resultado==='open'?'ABIERTA':'—';
+    return `<div class="op-item ${o.resultado}">
+      <div class="op-header">
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span class="op-activo">${o.activo}</span>
+          <span class="op-dir ${o.direccion}">${o.direccion==='long'?'▲':'▼'} ${o.direccion.toUpperCase()}</span>
+        </div>
+        <span class="op-pnl ${pnlColor}">${pnlText}</span>
+      </div>
+      <div class="op-details">
+        ${o.entrada?`<span>IN: ${o.entrada}</span>`:''}${o.sl?`<span>SL: ${o.sl}</span>`:''}${o.tp?`<span>TP: ${o.tp}</span>`:''}
+        ${o.rr?`<span style="color:var(--gold)">${o.rr.toFixed(2)}R</span>`:''}
+      </div>
+      ${o.setup?`<div class="op-nota">${o.setup}</div>`:''}
+      <div class="op-footer">
+        <span class="op-fecha">${o.fecha}</span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-del" style="font-size:12px;color:var(--text3)" onclick="editarOp(${idx})">✎</button>
+          <button class="btn-del" onclick="eliminarOp(${idx})">×</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty-state"><div class="icon">📊</div>Sin operaciones</div>'}`;
+}
+
+function cambiarEstadoCuenta(cid, estado) {
+  const c = cuentasFondeo.find(x=>x.id===cid);
+  if (c) { c.estado = estado; guardar(); showToast('Estado actualizado'); }
+}
+
+function nuevaOpCuenta(cid) {
+  switchTab('nueva');
+  setTimeout(() => {
+    const sel = document.getElementById('op-cuenta');
+    if (sel) sel.value = cid;
+  }, 50);
+}
+
+// ─── GESTIÓN DE CUENTAS ───────────────────────────────
+function renderGestionCuentas() {
+  return `<div class="form-card">
+    <h3>➕ Nueva cuenta de fondeo</h3>
+    <div class="field"><label>Nombre de la cuenta</label><input type="text" id="cf-nombre" placeholder="ej. TheTradingTip 10K #1"></div>
+    <div class="field-row">
+      <div class="field"><label>Capital €</label><input type="number" id="cf-capital" placeholder="10000"></div>
+      <div class="field"><label>Drawdown máx %</label><input type="number" id="cf-dd" placeholder="10" step="0.1"></div>
+    </div>
+    <div class="field"><label>Objetivo de beneficio %</label><input type="number" id="cf-objetivo" placeholder="8" step="0.1"></div>
+    <div class="field"><label>Estado inicial</label>
+      <select id="cf-estado">
+        <option value="challenge">🔥 Challenge (pendiente)</option>
+        <option value="aprobada">✓ Aprobada</option>
+      </select>
+    </div>
+    <button class="btn-add" onclick="crearCuenta()">+ Crear cuenta</button>
+  </div>
+  ${cuentasFondeo.length ? `
+    <div class="section-label">Cuentas existentes</div>
+    ${cuentasFondeo.map(c=>`
+      <div class="cuenta-fondeo-card">
+        <div class="cf-header">
+          <div><div class="cf-nombre">${c.nombre}</div><div style="font-size:10px;color:var(--text3);margin-top:3px;">€${c.capital.toLocaleString()} · DD ${c.drawdownMax}% · Obj ${c.objetivo}%</div></div>
+          <button class="btn-cf-del" onclick="eliminarCuenta('${c.id}')">×</button>
+        </div>
+      </div>
+    `).join('')}
+  ` : ''}`;
+}
+
+function crearCuenta() {
+  const nombre = document.getElementById('cf-nombre').value.trim();
+  const capital = fmtN(document.getElementById('cf-capital').value);
+  const dd = fmtN(document.getElementById('cf-dd').value);
+  const objetivo = fmtN(document.getElementById('cf-objetivo').value);
+  const estado = document.getElementById('cf-estado').value;
+  if (!nombre||!capital) { alert('Introduce nombre y capital'); return; }
+  cuentasFondeo.push({ id: uid(), nombre, capital, drawdownMax: dd||10, objetivo: objetivo||8, estado });
+  guardar();
+  renderTabs();
+  showToast('✓ Cuenta creada: ' + nombre);
+  renderTab('cuentas');
+}
+
+function eliminarCuenta(cid) {
+  if (!confirm('¿Eliminar esta cuenta? Se perderán sus operaciones asociadas.')) return;
+  cuentasFondeo = cuentasFondeo.filter(c=>c.id!==cid);
+  operaciones = operaciones.filter(o=>o.cuentaId!==cid);
+  guardar();
+  renderTabs();
+  tabActiva = 'resumen';
+  renderTab('resumen');
+  showToast('Cuenta eliminada');
+}
+
+// ─── EXPORTAR EXCEL ───────────────────────────────────
+function exportarExcel(tipo) {
+  const wb = XLSX.utils.book_new();
+  const getCuentaNombre = id => { if(id==='personal') return 'Personal'; const c=cuentasFondeo.find(x=>x.id===id); return c?c.nombre:id; };
+
+  if (tipo === 'ops') {
+    const filas = [...operaciones].sort((a,b)=>{
+      const p=f=>{ const x=f.split('/'); if(x.length!==3) return 0; return new Date(x[2].length===2?'20'+x[2]:x[2],x[1]-1,x[0]).getTime(); };
+      return p(a.fecha)-p(b.fecha);
+    }).map(o=>({
+      Fecha: o.fecha, Activo: o.activo, Cuenta: getCuentaNombre(o.cuentaId),
+      Dirección: o.direccion.toUpperCase(), Entrada: o.entrada||'', SL: o.sl||'', TP: o.tp||'',
+      'R:R': o.rr?o.rr.toFixed(2):'', Resultado: o.resultado,
+      'P&L (€)': o.pnl!=null?o.pnl:'', Setup: o.setup||''
+    }));
+    const ws = XLSX.utils.json_to_sheet(filas);
+    ws['!cols']=[{wch:12},{wch:10},{wch:20},{wch:10},{wch:10},{wch:10},{wch:10},{wch:8},{wch:10},{wch:10},{wch:30}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Operaciones');
+  } else {
+    const filas = cuentasFondeo.map(c=>{
+      const ops = opsPorCuenta(c.id).filter(o=>o.resultado!=='open');
+      const pnl = ops.reduce((s,o)=>s+(o.pnl||0),0);
+      const wins = ops.filter(o=>o.resultado==='win').length;
+      return {
+        Cuenta: c.nombre, Estado: c.estado, 'Capital (€)': c.capital,
+        'Objetivo (%)': c.objetivo, 'DD Máx (%)': c.drawdownMax,
+        'P&L (€)': pnl.toFixed(2), 'Ops': ops.length,
+        'Winrate (%)': ops.length?Math.round(wins/ops.length*100):0,
+        'Objetivo EUR': (c.capital*c.objetivo/100).toFixed(2),
+        'Faltan EUR': Math.max(c.capital*c.objetivo/100-pnl,0).toFixed(2)
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(filas);
+    XLSX.utils.book_append_sheet(wb, ws, 'Fondeo');
+  }
+  XLSX.writeFile(wb, `trading_${tipo}_${new Date().toLocaleDateString('es-ES').replace(/\//g,'-')}.xlsx`);
+  showToast('✓ Excel exportado');
+}
+
+// ─── INIT ─────────────────────────────────────────────
+cargarDatos();
+</script>
+</body>
+</html>
