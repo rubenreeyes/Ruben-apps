@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Capital · Rubén</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #18191b;
+    --surface: #222426;
+    --surface2: #2a2d30;
+    --surface3: #32363a;
+    --border: #3c4044;
+    --accent: #a8b8c8;
+    --green: #6aab82;
+    --red: #c07060;
+    --gold: #c0a858;
+    --blue: #6898c0;
+    --purple: #9880c0;
+    --orange: #c08858;
+    --text: #e0e4e8;
+    --text2: #8090a0;
+    --text3: #505860;
+    --radius: 13px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; position: relative; z-index: 1; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Instrument Sans', sans-serif;
+    min-height: 100vh;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+
+  /* SETUP SCREEN */
+  .setup-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    z-index: 200; overflow-y: auto; padding: 32px 20px 40px;
+  }
+  .setup-screen h1 { font-family: 'Instrument Serif', serif; font-size: 26px; font-weight: 400; margin-bottom: 6px; }
+  .setup-screen h1 em { color: var(--accent); font-style: italic; }
+  .setup-screen p { font-size: 12px; color: var(--text2); margin-bottom: 24px; line-height: 1.5; }
+  .setup-section { margin-bottom: 20px; }
+  .setup-section-title { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+
+  /* HEADER */
+  .header { padding: 18px 20px 12px; border-bottom: 1px solid var(--border); background: var(--bg); position: sticky; top: 0; z-index: 100; }
+  .header-top { display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { font-family: 'Instrument Serif', serif; font-size: 20px; font-weight: 400; letter-spacing: -0.3px; }
+  .header h1 em { color: var(--accent); font-style: italic; }
+  .saving-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); display: inline-block; margin-left: 5px; transition: background .3s; vertical-align: middle; }
+  .saving-dot.saving { background: var(--gold); animation: blink .6s ease-in-out infinite; }
+  .saving-dot.saved { background: var(--green); }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+
+  .mes-selector { display: flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; }
+  .mes-selector select { background: none; border: none; color: var(--text); font-family: 'Instrument Sans', sans-serif; font-size: 11px; cursor: pointer; outline: none; }
+
+  /* HERO */
+  .patrimonio-hero { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .pat-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; }
+  .pat-amount { font-family: 'Instrument Serif', serif; font-size: 40px; color: var(--text); letter-spacing: -1px; line-height: 1; }
+  .pat-amount .cents { font-size: 20px; color: var(--text2); }
+  .pat-cambio { font-size: 11px; margin-top: 5px; }
+  .pat-cambio.pos { color: var(--green); }
+  .pat-cambio.neg { color: var(--red); }
+  .pat-cambio.neu { color: var(--text3); }
+
+  /* CUENTAS */
+  .cuentas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  .cuenta-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px; border-left: 3px solid var(--border); }
+  .cuenta-card.trading { border-left-color: var(--accent); }
+  .cuenta-card.etfs { border-left-color: var(--green); }
+  .cuenta-card.cripto { border-left-color: var(--gold); }
+  .cuenta-card.revolut { border-left-color: var(--blue); }
+  .cuenta-card.pronosticos { border-left-color: var(--orange); }
+  .cuenta-card.impuestos { border-left-color: var(--red); }
+  .cuenta-card.carpinteria { border-left-color: var(--purple); }
+  .cc-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+  .cc-amount { font-family: 'Instrument Serif', serif; font-size: 17px; color: var(--text); }
+
+  /* TABS */
+  .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); position: sticky; top: 62px; z-index: 99; overflow-x: auto; }
+  .tab { flex-shrink: 0; padding: 10px 14px; font-size: 10px; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; text-transform: uppercase; letter-spacing: 1px; transition: all .15s; white-space: nowrap; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .content { padding: 14px 20px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* CARDS */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+  .card h3 { font-family: 'Instrument Serif', serif; font-weight: 400; font-size: 15px; color: var(--text2); margin-bottom: 12px; }
+
+  /* FIELDS */
+  .field { margin-bottom: 9px; }
+  .field label { display: block; font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .field input, .field select, .field textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; color: var(--text); font-family: 'Instrument Sans', sans-serif; font-size: 12px; outline: none; transition: border-color .15s; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+  .field select option { background: var(--surface2); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .field-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  .btn { width: 100%; padding: 12px; background: var(--surface3); color: var(--text); border: 1px solid var(--border); border-radius: 10px; font-family: 'Instrument Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; letter-spacing: .5px; transition: all .15s; }
+  .btn:active { opacity: .85; transform: scale(.98); }
+  .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .btn.danger-btn { background: rgba(192,112,96,.15); color: var(--red); border-color: rgba(192,112,96,.3); }
+
+  /* REPARTO */
+  .reparto-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .reparto-item:last-child { border-bottom: none; }
+  .ri-left { display: flex; align-items: center; gap: 9px; }
+  .ri-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .ri-label { font-size: 12px; color: var(--text); }
+  .ri-amount { font-family: 'Instrument Serif', serif; font-size: 15px; }
+  .ri-amount.hacienda { color: var(--red); }
+
+  .resultado-box { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+  .rb-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px; }
+  .rb-amount { font-family: 'Instrument Serif', serif; font-size: 30px; color: var(--text); letter-spacing: -0.5px; }
+  .rb-sub { font-size: 11px; color: var(--text2); margin-top: 3px; }
+
+  /* OBJETIVOS */
+  .objetivo-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+  .oc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .oc-nombre { font-family: 'Instrument Serif', serif; font-size: 16px; }
+  .oc-desc { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .oc-pct-wrap { text-align: right; }
+  .oc-pct { font-family: 'Instrument Serif', serif; font-size: 22px; color: var(--accent); }
+  .oc-actual { font-size: 10px; color: var(--text3); margin-top: 1px; }
+  .progress-wrap { margin-bottom: 6px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+  .progress-bar { height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
+  .oc-asignado { font-size: 10px; color: var(--text3); background: var(--surface2); border-radius: 6px; padding: 4px 8px; display: inline-block; margin-top: 4px; }
+  .oc-proyeccion { font-size: 10px; color: var(--text2); margin-top: 5px; font-style: italic; }
+  .oc-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .btn-sm { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-family: 'Instrument Sans', sans-serif; font-size: 10px; color: var(--text3); cursor: pointer; }
+  .btn-del-sm { background: none; border: none; color: var(--text3); font-size: 15px; cursor: pointer; }
+
+  /* HISTORIAL */
+  .mes-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px; margin-bottom: 8px; }
+  .mc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .mc-mes { font-family: 'Instrument Serif', serif; font-size: 15px; }
+  .mc-patrimonio { font-family: 'Instrument Serif', serif; font-size: 15px; color: var(--accent); }
+  .mc-detalle { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .mc-item { font-size: 10px; color: var(--text3); }
+  .mc-item span { color: var(--text2); }
+
+  /* ALERTAS */
+  .alerta-card { border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; border: 1px solid; }
+  .alerta-card.ok { background: rgba(106,171,130,.08); border-color: rgba(106,171,130,.25); }
+  .alerta-card.warn { background: rgba(192,168,88,.08); border-color: rgba(192,168,88,.25); }
+  .alerta-card.danger { background: rgba(192,112,96,.08); border-color: rgba(192,112,96,.25); }
+  .alerta-titulo { font-size: 11px; font-weight: 600; margin-bottom: 3px; }
+  .alerta-card.ok .alerta-titulo { color: var(--green); }
+  .alerta-card.warn .alerta-titulo { color: var(--gold); }
+  .alerta-card.danger .alerta-titulo { color: var(--red); }
+  .alerta-texto { font-size: 11px; color: var(--text2); line-height: 1.4; }
+
+  /* GRAFICA */
+  .grafica-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+  .grafica-titulo { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .grafica-bars { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
+  .g-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .g-bar { width: 100%; background: var(--surface3); border-radius: 3px 3px 0 0; transition: height .4s ease; min-height: 3px; }
+  .g-bar.current { background: var(--accent); }
+  .g-label { font-size: 8px; color: var(--text3); }
+
+  .section-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; margin-top: 4px; }
+  .empty-state { text-align: center; padding: 28px 0; color: var(--text3); font-size: 11px; }
+  .empty-state .icon { font-size: 26px; margin-bottom: 8px; }
+
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface3); color: var(--text); border: 1px solid var(--border); padding: 9px 18px; border-radius: 20px; font-size: 11px; font-weight: 600; transition: transform .3s ease; z-index: 999; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .loading-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; gap: 12px; }
+  .spinner { width: 22px; height: 22px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .loading-overlay span { font-size: 10px; color: var(--text3); }
+
+  .divider { height: 1px; background: var(--border); margin: 12px 0; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <span>Cargando...</span>
+</div>
+
+<!-- SETUP SCREEN -->
+<div class="setup-screen" id="setupScreen" style="display:none">
+  <h1>Capital <em>&</em> Patrimonio</h1>
+  <p>Introduce los saldos actuales de cada cuenta para empezar. Podrás modificarlos en cualquier momento desde Ajustes.</p>
+
+  <div class="setup-section">
+    <div class="setup-section-title">Cuentas de inversión</div>
+    <div class="field"><label>Trading · Quantfury €</label><input type="number" id="s-trading" value="7000" step="0.01"></div>
+    <div class="field"><label>ETFs · Trade Republic €</label><input type="number" id="s-etfs" value="3000" step="0.01"></div>
+    <div class="field"><label>Cripto €</label><input type="number" id="s-cripto" value="0" step="0.01"></div>
+    <div class="field"><label>Pronósticos deportivos €</label><input type="number" id="s-pronosticos" value="2000" step="0.01"></div>
+  </div>
+
+  <div class="setup-section">
+    <div class="setup-section-title">Cuentas de liquidez</div>
+    <div class="field"><label>Revolut (colchón) €</label><input type="number" id="s-revolut" value="6000" step="0.01"></div>
+  </div>
+
+  <div class="setup-section">
+    <div class="setup-section-title">Reservas</div>
+    <div class="field"><label>Cuenta impuestos €</label><input type="number" id="s-impuestos" value="0" step="0.01"></div>
+    <div class="field"><label>Reserva carpintería €</label><input type="number" id="s-carpinteria" value="0" step="0.01"></div>
+  </div>
+
+  <button class="btn primary" onclick="finalizarSetup()" style="margin-top:8px;">Empezar →</button>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <h1>Capital <em>&</em> Pat. <span class="saving-dot" id="savingDot"></span></h1>
+    <div class="mes-selector">
+      <select id="mesSelect" onchange="cambiarMes()"></select>
+    </div>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="patrimonio-hero">
+  <div class="pat-label">Patrimonio neto</div>
+  <div class="pat-amount" id="patrimonioTotal">€0<span class="cents">,00</span></div>
+  <div class="pat-cambio neu" id="patrimonioCambio">—</div>
+</div>
+
+<!-- CUENTAS -->
+<div class="cuentas-grid" id="cuentasGrid"></div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('resumen')">Resumen</div>
+  <div class="tab" onclick="showTab('reparto')">Reparto</div>
+  <div class="tab" onclick="showTab('objetivos')">Objetivos</div>
+  <div class="tab" onclick="showTab('historial')">Historial</div>
+  <div class="tab" onclick="showTab('config')">Ajustes</div>
+</div>
+
+<div class="content">
+  <div class="panel active" id="panel-resumen"></div>
+  <div class="panel" id="panel-reparto">
+    <div class="card">
+      <h3>Calculadora de reparto</h3>
+      <div class="field"><label>Importe ingresado (con IVA si aplica) €</label><input type="number" id="rep-ingreso" placeholder="ej. 10000" step="0.01" oninput="calcReparto()"></div>
+      <div class="field"><label>Fuente</label>
+        <select id="rep-fuente" onchange="calcReparto()">
+          <option value="negocio">Negocio (con IVA)</option>
+          <option value="trading">Trading (sin IVA)</option>
+          <option value="otro">Otro (sin IVA)</option>
+        </select>
+      </div>
+    </div>
+    <div id="repartoResultado"></div>
+    <button class="btn primary" id="btnGuardarMes" onclick="guardarMes()" style="display:none;margin-top:4px;">✓ Guardar este mes</button>
+  </div>
+  <div class="panel" id="panel-objetivos"></div>
+  <div class="panel" id="panel-historial"></div>
+  <div class="panel" id="panel-config"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const TRIMESTRES_IVA = [3,6,9,12];
+
+let mesActual = new Date().getMonth();
+let anioActual = new Date().getFullYear();
+let saveTimeout = null;
+let inicializado = false;
+
+let config = {
+  porcentajes: { gastos:32, colchon:8, trading:24, etfs:24, pronosticos:3, carpinteria:8 },
+  colchonObjetivo: 10000,
+  ivaPct: 21,
+  irpfPct: 25,
+};
+
+let cuentas = {
+  trading: 7000, etfs: 3000, cripto: 0,
+  revolut: 6000, pronosticos: 2000,
+  impuestos: 0, carpinteria: 0,
+};
+
+let historial = [];
+let objetivos = [
+  { id:'1', nombre:'Casa', icono:'🏠', target:70000, pctPatrimonio:30, color:'var(--accent)', desc:'Entrada hipoteca 350k' },
+  { id:'2', nombre:'Coche', icono:'🚗', target:50000, pctPatrimonio:15, color:'var(--blue)', desc:'Coche principal 50k' },
+  { id:'3', nombre:'Carpintería', icono:'🏭', target:150000, pctPatrimonio:20, color:'var(--purple)', desc:'Señal/entrada carpintería' },
+];
+
+// ─── STORAGE ──────────────────────────────────────────
+function cargarDatos() {
+  try {
+    const raw = localStorage.getItem('ruben_capital_v2');
+    if (raw) {
+      const d = JSON.parse(raw);
+      config = d.config || config;
+      cuentas = d.cuentas || cuentas;
+      historial = d.historial || [];
+      objetivos = d.objetivos || objetivos;
+      inicializado = d.inicializado || false;
+    }
+  } catch(e) {}
+  document.getElementById('loadingOverlay').style.display = 'none';
+  if (!inicializado) {
+    document.getElementById('setupScreen').style.display = 'block';
+  } else {
+    initMesSelect();
+    actualizarTodo();
+  }
+}
+
+function persistir() {
+  const dot = document.getElementById('savingDot');
+  dot.className = 'saving-dot saving';
+  try {
+    localStorage.setItem('ruben_capital_v2', JSON.stringify({ config, cuentas, historial, objetivos, inicializado }));
+    dot.className = 'saving-dot saved';
+    setTimeout(() => dot.className = 'saving-dot', 2000);
+  } catch(e) { dot.className = 'saving-dot'; }
+}
+function guardar() {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(persistir, 800);
+}
+
+function finalizarSetup() {
+  cuentas.trading = fmtN(document.getElementById('s-trading').value);
+  cuentas.etfs = fmtN(document.getElementById('s-etfs').value);
+  cuentas.cripto = fmtN(document.getElementById('s-cripto').value);
+  cuentas.pronosticos = fmtN(document.getElementById('s-pronosticos').value);
+  cuentas.revolut = fmtN(document.getElementById('s-revolut').value);
+  cuentas.impuestos = fmtN(document.getElementById('s-impuestos').value);
+  cuentas.carpinteria = fmtN(document.getElementById('s-carpinteria').value);
+  inicializado = true;
+  guardar();
+  document.getElementById('setupScreen').style.display = 'none';
+  initMesSelect();
+  actualizarTodo();
+}
+
+// ─── HELPERS ──────────────────────────────────────────
+function fmt(n) { return Math.abs(n).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtN(v) { return parseFloat(v)||0; }
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+function patrimonioTotal() {
+  return Object.entries(cuentas).filter(([k])=>k!=='impuestos').reduce((s,[,v])=>s+v,0);
+}
+function cambioPatrimonio() {
+  if (!historial.length) return null;
+  return patrimonioTotal() - (historial[historial.length-1].patrimonio||0);
+}
+
+function initMesSelect() {
+  const sel = document.getElementById('mesSelect');
+  sel.innerHTML = MESES.map((m,i)=>`<option value="${i}" ${i===mesActual?'selected':''}>${m} ${anioActual}</option>`).join('');
+}
+function cambiarMes() {
+  mesActual = parseInt(document.getElementById('mesSelect').value);
+  actualizarTodo();
+}
+
+// ─── HERO Y CUENTAS ───────────────────────────────────
+function actualizarHero() {
+  const total = patrimonioTotal();
+  const partes = fmt(total).split(',');
+  document.getElementById('patrimonioTotal').innerHTML = `€${partes[0]}<span class="cents">,${partes[1]}</span>`;
+  const cambio = cambioPatrimonio();
+  const el = document.getElementById('patrimonioCambio');
+  if (cambio===null) { el.textContent='Primer mes'; el.className='pat-cambio neu'; return; }
+  el.textContent = `${cambio>=0?'+':''}€${fmt(Math.abs(cambio))} vs mes anterior`;
+  el.className = `pat-cambio ${cambio>0?'pos':cambio<0?'neg':'neu'}`;
+}
+
+function actualizarCuentasGrid() {
+  const items = [
+    {key:'trading',label:'Trading · Quantfury',clase:'trading'},
+    {key:'etfs',label:'ETFs · Trade Republic',clase:'etfs'},
+    {key:'cripto',label:'Cripto',clase:'cripto'},
+    {key:'revolut',label:'Revolut · Colchón',clase:'revolut'},
+    {key:'pronosticos',label:'Pronósticos dep.',clase:'pronosticos'},
+    {key:'impuestos',label:'Cuenta impuestos',clase:'impuestos'},
+    {key:'carpinteria',label:'Reserva carpintería',clase:'carpinteria'},
+  ];
+  document.getElementById('cuentasGrid').innerHTML = items.map(it=>`
+    <div class="cuenta-card ${it.clase}">
+      <div class="cc-label">${it.label}</div>
+      <div class="cc-amount">€${fmt(cuentas[it.key]||0)}</div>
+    </div>`).join('');
+}
+
+// ─── RESUMEN ──────────────────────────────────────────
+function renderResumen() {
+  const pat = patrimonioTotal();
+  const ahorro = historial.length>=2 ? historial.reduce((s,m)=>s+(m.neto||0),0)/historial.length : 0;
+  const alertaIVA = getAlertaIVA();
+
+  document.getElementById('panel-resumen').innerHTML = `
+    ${alertaIVA}
+    <div class="grafica-wrap">
+      <div class="grafica-titulo">Evolución patrimonial</div>
+      ${renderGrafica()}
+    </div>
+    <div class="card">
+      <h3>Datos del mes</h3>
+      <div class="reparto-item">
+        <div class="ri-left"><div class="ri-dot" style="background:var(--accent)"></div><div class="ri-label">Patrimonio invertible</div></div>
+        <div class="ri-amount">€${fmt(pat)}</div>
+      </div>
+      <div class="reparto-item">
+        <div class="ri-left"><div class="ri-dot" style="background:var(--red)"></div><div class="ri-label">Reserva impuestos</div></div>
+        <div class="ri-amount" style="color:var(--red)">€${fmt(cuentas.impuestos||0)}</div>
+      </div>
+      <div class="reparto-item">
+        <div class="ri-left"><div class="ri-dot" style="background:var(--gold)"></div><div class="ri-label">Ahorro medio/mes</div></div>
+        <div class="ri-amount">€${ahorro>0?fmt(ahorro):'—'}</div>
+      </div>
+      <div class="reparto-item">
+        <div class="ri-left"><div class="ri-dot" style="background:var(--text3)"></div><div class="ri-label">Meses registrados</div></div>
+        <div class="ri-amount">${historial.length}</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Actualizar saldos</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        ${Object.keys(cuentas).map(k=>`
+          <div class="field">
+            <label>${k==='pronosticos'?'Pronósticos':k.charAt(0).toUpperCase()+k.slice(1)}</label>
+            <input type="number" id="cnt-${k}" value="${cuentas[k]||0}" step="0.01" style="font-size:12px;padding:8px 10px;">
+          </div>`).join('')}
+      </div>
+      <button class="btn primary" onclick="actualizarCuentasManual()" style="margin-top:6px;">Guardar saldos</button>
+    </div>`;
+}
+
+function actualizarCuentasManual() {
+  Object.keys(cuentas).forEach(k=>{
+    const el = document.getElementById('cnt-'+k);
+    if (el) cuentas[k] = fmtN(el.value);
+  });
+  guardar();
+  actualizarTodo();
+  showToast('✓ Saldos actualizados');
+}
+
+function getAlertaIVA() {
+  const mesNum = mesActual+1;
+  const esMesPago = TRIMESTRES_IVA.includes(mesNum);
+  const tiene = cuentas.impuestos||0;
+  if (esMesPago) return `<div class="alerta-card danger"><div class="alerta-titulo">⚠️ Mes de pago de IVA</div><div class="alerta-texto">Toca presentar el modelo 303. Tienes €${fmt(tiene)} en la cuenta de impuestos. Coordina con tu gestor.</div></div>`;
+  const debeAcumulado = historial.reduce((s,m)=>s+(m.reparto?.impuestos||0),0);
+  const diff = tiene - debeAcumulado;
+  if (diff<-500) return `<div class="alerta-card warn"><div class="alerta-titulo">⚡ Revisa la cuenta de impuestos</div><div class="alerta-texto">Puede que te falte apartar dinero. Próximo pago: ${proximoPagoIVA()}.</div></div>`;
+  return `<div class="alerta-card ok"><div class="alerta-titulo">✓ Impuestos al día</div><div class="alerta-texto">Tienes €${fmt(tiene)} reservado. Próximo pago de IVA: ${proximoPagoIVA()}.</div></div>`;
+}
+
+function proximoPagoIVA() {
+  const mesNum = mesActual+1;
+  const siguiente = TRIMESTRES_IVA.find(m=>m>mesNum);
+  const mesPago = siguiente||TRIMESTRES_IVA[0];
+  return MESES[mesPago-1]+(siguiente?'':' '+(anioActual+1));
+}
+
+function renderGrafica() {
+  if (historial.length<2) return '<div style="text-align:center;color:var(--text3);font-size:11px;padding:20px 0;">Registra al menos 2 meses para ver la evolución</div>';
+  const max = Math.max(...historial.map(m=>m.patrimonio||0));
+  return `<div class="grafica-bars">${historial.slice(-8).map((m,i,arr)=>{
+    const h = max>0?Math.max((m.patrimonio/max)*72,3):3;
+    const isCurrent = i===arr.length-1;
+    return `<div class="g-bar-wrap"><div class="g-bar ${isCurrent?'current':''}" style="height:${h}px" title="€${fmt(m.patrimonio)}"></div><div class="g-label">${MESES[m.mes].slice(0,3)}</div></div>`;
+  }).join('')}</div>`;
+}
+
+// ─── REPARTO ──────────────────────────────────────────
+function calcReparto() {
+  const ingreso = fmtN(document.getElementById('rep-ingreso').value);
+  if (!ingreso) { document.getElementById('repartoResultado').innerHTML=''; document.getElementById('btnGuardarMes').style.display='none'; return; }
+
+  const fuente = document.getElementById('rep-fuente').value;
+  const tieneIVA = fuente==='negocio';
+  const baseImponible = tieneIVA ? ingreso/(1+config.ivaPct/100) : ingreso;
+  const iva = tieneIVA ? ingreso-baseImponible : 0;
+  const irpf = baseImponible*(config.irpfPct/100);
+  const totalImpuestos = iva+irpf;
+  const neto = ingreso-totalImpuestos;
+
+  const colchonCompleto = (cuentas.revolut||0)>=config.colchonObjetivo;
+  const colchon = colchonCompleto ? 0 : neto*(config.porcentajes.colchon/100);
+  const extraTrading = colchonCompleto ? neto*(config.porcentajes.colchon/100) : 0;
+  const trading = neto*(config.porcentajes.trading/100)+extraTrading;
+  const etfs = neto*(config.porcentajes.etfs/100);
+  const pronosticos = neto*(config.porcentajes.pronosticos/100);
+  const carpinteria = neto*(config.porcentajes.carpinteria/100);
+  const gastos = neto*(config.porcentajes.gastos/100);
+
+  const items = [
+    {label:'IVA → cuenta impuestos', amount:iva, color:'var(--red)', hacienda:true, show:iva>0},
+    {label:'IRPF → cuenta impuestos', amount:irpf, color:'#c05a4a', hacienda:true, show:true},
+    {label:'Gastos personales', amount:gastos, color:'var(--text3)', show:true},
+    {label:colchonCompleto?'Colchón ✓ redirigido a trading':`Colchón Revolut (hasta €${fmt(config.colchonObjetivo)})`, amount:colchon, color:'var(--blue)', show:!colchonCompleto},
+    {label:'Trading · Quantfury', amount:trading, color:'var(--accent)', show:true},
+    {label:'ETFs · Trade Republic', amount:etfs, color:'var(--green)', show:true},
+    {label:'Pronósticos deportivos', amount:pronosticos, color:'var(--orange)', show:true},
+    {label:'Reserva carpintería', amount:carpinteria, color:'var(--purple)', show:true},
+  ].filter(i=>i.show&&i.amount>0.01);
+
+  document.getElementById('repartoResultado').innerHTML = `
+    <div class="resultado-box">
+      <div class="rb-label">Ingreso bruto</div>
+      <div class="rb-amount">€${fmt(ingreso)}</div>
+      <div class="rb-sub">Neto disponible: €${fmt(neto)} · Impuestos: €${fmt(totalImpuestos)}</div>
+    </div>
+    <div class="card">
+      <h3>Distribución</h3>
+      ${items.map(i=>`
+        <div class="reparto-item">
+          <div class="ri-left"><div class="ri-dot" style="background:${i.color}"></div><div class="ri-label">${i.label}</div></div>
+          <div class="ri-amount ${i.hacienda?'hacienda':''}">€${fmt(i.amount)}</div>
+        </div>`).join('')}
+    </div>`;
+
+  window._repartoCalc = { ingreso, neto, baseImponible, iva, irpf, gastos, colchon, trading, etfs, pronosticos, carpinteria };
+  document.getElementById('btnGuardarMes').style.display = 'block';
+}
+
+function guardarMes() {
+  const r = window._repartoCalc;
+  if (!r) return;
+  cuentas.impuestos = (cuentas.impuestos||0)+r.iva+r.irpf;
+  cuentas.revolut = (cuentas.revolut||0)+r.colchon;
+  cuentas.trading = (cuentas.trading||0)+r.trading;
+  cuentas.etfs = (cuentas.etfs||0)+r.etfs;
+  cuentas.pronosticos = (cuentas.pronosticos||0)+r.pronosticos;
+  cuentas.carpinteria = (cuentas.carpinteria||0)+r.carpinteria;
+
+  const existeIdx = historial.findIndex(m=>m.mes===mesActual&&m.anio===anioActual);
+  const entrada = {
+    mes:mesActual, anio:anioActual, ingreso:r.ingreso, neto:r.neto,
+    reparto:{impuestos:r.iva+r.irpf, trading:r.trading, etfs:r.etfs, pronosticos:r.pronosticos, carpinteria:r.carpinteria, colchon:r.colchon},
+    cuentas:{...cuentas}, patrimonio:patrimonioTotal()
+  };
+  if (existeIdx>=0) historial[existeIdx]=entrada; else historial.push(entrada);
+  guardar();
+  actualizarTodo();
+  document.getElementById('rep-ingreso').value='';
+  document.getElementById('repartoResultado').innerHTML='';
+  document.getElementById('btnGuardarMes').style.display='none';
+  showToast('✓ Mes guardado · €'+fmt(r.ingreso));
+}
+
+// ─── OBJETIVOS ────────────────────────────────────────
+function renderObjetivos() {
+  const pat = patrimonioTotal();
+  const ahorro = historial.length>=2 ? historial.reduce((s,m)=>s+(m.neto||0),0)/historial.length : 0;
+
+  document.getElementById('panel-objetivos').innerHTML = `
+    ${objetivos.map(o=>{
+      // El actual se calcula automáticamente como % del patrimonio
+      const actualAuto = pat*(o.pctPatrimonio/100);
+      const pct = Math.min((actualAuto/o.target)*100,100);
+      const restante = Math.max(o.target-actualAuto,0);
+      const mesesRest = ahorro>0&&restante>0 ? Math.ceil(restante/(ahorro*(o.pctPatrimonio/100))) : null;
+      return `<div class="objetivo-card">
+        <div class="oc-header">
+          <div>
+            <div class="oc-nombre">${o.icono} ${o.nombre}</div>
+            <div class="oc-desc">${o.desc}</div>
+          </div>
+          <div class="oc-pct-wrap">
+            <div class="oc-pct">${pct.toFixed(0)}%</div>
+            <div class="oc-actual">€${fmt(actualAuto)}</div>
+          </div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-label"><span>€${fmt(actualAuto)} de €${fmt(o.target)}</span><span style="color:var(--text3)">${o.pctPatrimonio}% patrimonio</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${o.color}"></div></div>
+        </div>
+        <div class="oc-asignado">Asignado: ${o.pctPatrimonio}% del patrimonio total</div>
+        ${mesesRest?`<div class="oc-proyeccion">A este ritmo: ~${mesesRest} meses (${MESES[(mesActual+mesesRest)%12]} ${anioActual+Math.floor((mesActual+mesesRest)/12)})</div>`:''}
+        <div class="oc-footer">
+          <button class="btn-sm" onclick="editarObjetivo('${o.id}')">✎ Editar</button>
+          <button class="btn-del-sm" onclick="eliminarObjetivo('${o.id}')">×</button>
+        </div>
+      </div>`;
+    }).join('')}
+    <div class="card" id="formObj">
+      <h3 id="formObjTitulo">➕ Nuevo objetivo</h3>
+      <input type="hidden" id="obj-id">
+      <div class="field-row">
+        <div class="field"><label>Nombre</label><input type="text" id="obj-nombre" placeholder="Casa"></div>
+        <div class="field"><label>Icono</label><input type="text" id="obj-icono" placeholder="🏠" maxlength="2"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Objetivo €</label><input type="number" id="obj-target" placeholder="70000"></div>
+        <div class="field"><label>% del patrimonio</label><input type="number" id="obj-pct" placeholder="30" step="1" min="1" max="100"></div>
+      </div>
+      <div class="field"><label>Descripción</label><input type="text" id="obj-desc" placeholder="ej. Entrada hipoteca"></div>
+      <div class="field"><label>Color</label>
+        <select id="obj-color">
+          <option value="var(--accent)">Gris azulado</option>
+          <option value="var(--green)">Verde</option>
+          <option value="var(--blue)">Azul</option>
+          <option value="var(--gold)">Dorado</option>
+          <option value="var(--purple)">Morado</option>
+          <option value="var(--orange)">Naranja</option>
+          <option value="var(--red)">Rojo</option>
+        </select>
+      </div>
+      <button class="btn primary" onclick="guardarObjetivo()">Guardar objetivo</button>
+    </div>`;
+}
+
+function editarObjetivo(id) {
+  const o = objetivos.find(x=>x.id===id);
+  if (!o) return;
+  document.getElementById('obj-id').value=o.id;
+  document.getElementById('obj-nombre').value=o.nombre;
+  document.getElementById('obj-icono').value=o.icono;
+  document.getElementById('obj-target').value=o.target;
+  document.getElementById('obj-pct').value=o.pctPatrimonio;
+  document.getElementById('obj-desc').value=o.desc;
+  document.getElementById('obj-color').value=o.color;
+  document.getElementById('formObjTitulo').textContent='✎ Editar objetivo';
+  document.getElementById('formObj').scrollIntoView({behavior:'smooth'});
+}
+
+function guardarObjetivo() {
+  const id = document.getElementById('obj-id').value;
+  const obj = {
+    id:id||uid(),
+    nombre:document.getElementById('obj-nombre').value,
+    icono:document.getElementById('obj-icono').value||'🎯',
+    target:fmtN(document.getElementById('obj-target').value),
+    pctPatrimonio:fmtN(document.getElementById('obj-pct').value),
+    desc:document.getElementById('obj-desc').value,
+    color:document.getElementById('obj-color').value,
+  };
+  if (!obj.nombre||!obj.target||!obj.pctPatrimonio) { alert('Rellena nombre, objetivo y %'); return; }
+  if (id) { const idx=objetivos.findIndex(x=>x.id===id); if(idx>=0) objetivos[idx]=obj; }
+  else objetivos.push(obj);
+  guardar();
+  renderObjetivos();
+  document.getElementById('obj-id').value='';
+  document.getElementById('formObjTitulo').textContent='➕ Nuevo objetivo';
+  showToast('✓ Objetivo guardado');
+}
+
+function eliminarObjetivo(id) {
+  if (!confirm('¿Eliminar este objetivo?')) return;
+  objetivos=objetivos.filter(x=>x.id!==id);
+  guardar(); renderObjetivos();
+}
+
+// ─── HISTORIAL ────────────────────────────────────────
+function renderHistorial() {
+  const el = document.getElementById('panel-historial');
+  if (!historial.length) { el.innerHTML='<div class="empty-state"><div class="icon">📅</div>Sin meses registrados</div>'; return; }
+  el.innerHTML = [...historial].reverse().map(m=>`
+    <div class="mes-card">
+      <div class="mc-header">
+        <div class="mc-mes">${MESES[m.mes]} ${m.anio}</div>
+        <div class="mc-patrimonio">€${fmt(m.patrimonio||0)}</div>
+      </div>
+      <div class="mc-detalle">
+        <div class="mc-item">Ingresado: <span>€${fmt(m.ingreso||0)}</span></div>
+        <div class="mc-item">Neto: <span>€${fmt(m.neto||0)}</span></div>
+        <div class="mc-item">Trading: <span>€${fmt(m.reparto?.trading||0)}</span></div>
+        <div class="mc-item">ETFs: <span>€${fmt(m.reparto?.etfs||0)}</span></div>
+        <div class="mc-item">Impuestos: <span style="color:var(--red)">€${fmt(m.reparto?.impuestos||0)}</span></div>
+        <div class="mc-item">Pronósticos: <span>€${fmt(m.reparto?.pronosticos||0)}</span></div>
+        <div class="mc-item">Carpintería: <span>€${fmt(m.reparto?.carpinteria||0)}</span></div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── CONFIG ───────────────────────────────────────────
+function renderConfig() {
+  document.getElementById('panel-config').innerHTML = `
+    <div class="card">
+      <h3>Saldos iniciales</h3>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:12px;line-height:1.5;">Modifica los saldos actuales de cada cuenta directamente desde el Resumen → "Actualizar saldos".</div>
+      <button class="btn danger-btn" onclick="if(confirm('¿Resetear toda la configuración inicial?')){inicializado=false;guardar();location.reload();}">Resetear configuración inicial</button>
+    </div>
+    <div class="card">
+      <h3>Porcentajes de reparto</h3>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:10px;">Sobre el ingreso neto (sin impuestos). Deben sumar 100%.</div>
+      ${Object.entries(config.porcentajes).map(([k,v])=>`
+        <div class="field">
+          <label>${k==='pronosticos'?'Pronósticos':k.charAt(0).toUpperCase()+k.slice(1)} %</label>
+          <input type="number" id="pct-${k}" value="${v}" step="1" min="0" max="100">
+        </div>`).join('')}
+      <button class="btn primary" onclick="guardarPorcentajes()">Guardar porcentajes</button>
+    </div>
+    <div class="card">
+      <h3>Parámetros fiscales</h3>
+      <div class="field"><label>IVA %</label><input type="number" id="cfg-iva" value="${config.ivaPct}" step="1"></div>
+      <div class="field"><label>IRPF estimado %</label><input type="number" id="cfg-irpf" value="${config.irpfPct}" step="1"></div>
+      <div class="field"><label>Objetivo colchón €</label><input type="number" id="cfg-colchon" value="${config.colchonObjetivo}" step="100"></div>
+      <button class="btn primary" onclick="guardarFiscal()">Guardar</button>
+    </div>
+    <div class="card">
+      <h3>Fechas pago IVA</h3>
+      <div style="font-size:11px;color:var(--text2);line-height:1.8;">
+        📅 1T → Abril (modelo 303)<br>
+        📅 2T → Julio (modelo 303)<br>
+        📅 3T → Octubre (modelo 303)<br>
+        📅 4T → Enero siguiente (modelo 303)<br>
+        📅 IRPF → Junio-Julio (modelo 100)
+      </div>
+    </div>`;
+}
+
+function guardarPorcentajes() {
+  let total=0;
+  Object.keys(config.porcentajes).forEach(k=>{
+    const v=fmtN(document.getElementById('pct-'+k)?.value);
+    config.porcentajes[k]=v; total+=v;
+  });
+  if (Math.abs(total-100)>1) { alert(`Los porcentajes suman ${total.toFixed(0)}%. Deben sumar 100%.`); return; }
+  guardar(); showToast('✓ Porcentajes guardados');
+}
+
+function guardarFiscal() {
+  config.ivaPct=fmtN(document.getElementById('cfg-iva').value);
+  config.irpfPct=fmtN(document.getElementById('cfg-irpf').value);
+  config.colchonObjetivo=fmtN(document.getElementById('cfg-colchon').value);
+  guardar(); showToast('✓ Configuración guardada');
+}
+
+// ─── TABS ─────────────────────────────────────────────
+function showTab(id) {
+  const ids=['resumen','reparto','objetivos','historial','config'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',ids[i]===id));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  if(id==='resumen') renderResumen();
+  if(id==='objetivos') renderObjetivos();
+  if(id==='historial') renderHistorial();
+  if(id==='config') renderConfig();
+}
+
+function actualizarTodo() {
+  actualizarHero();
+  actualizarCuentasGrid();
+  renderResumen();
+  renderObjetivos();
+  renderHistorial();
+}
+
+cargarDatos();
+</script>
+</body>
+</html>
