@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Contacta con Klova · Hardware profesional y Mobile Homes. Estamos aquí para ayudarte.">
+<title>Contacto · Klova</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--black:#1e1c18;--dark:#2a2620;--mid:#5a5248;--stone:#8a8078;--warm:#c8bfb0;--cream:#f4f1ec;--white:#faf8f5;--gold:#c8a870;--gold-dark:#8a6830;--gold-light:#e8d4a8;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--cream);color:var(--dark);font-family:'DM Sans',sans-serif;font-weight:300;overflow-x:hidden;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.au{opacity:0;animation:fadeUp .8s ease forwards;}
+.au1{animation-delay:.1s}.au2{animation-delay:.25s}.au3{animation-delay:.4s}
+.reveal{opacity:0;transform:translateY(20px);transition:opacity .7s ease,transform .7s ease;}
+.reveal.visible{opacity:1;transform:translateY(0);}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;height:64px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;background:rgba(30,28,24,.96);backdrop-filter:blur(16px);border-bottom:1px solid rgba(200,191,176,.08);}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-logo-name{font-family:'Cormorant Garamond',serif;font-weight:600;font-style:italic;font-size:22px;color:var(--cream);letter-spacing:1px;}
+.nav-links{display:flex;align-items:center;gap:28px;list-style:none;}
+.nav-links a{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--stone);text-decoration:none;transition:color .2s;position:relative;}
+.nav-links a::after{content:'';position:absolute;bottom:-4px;left:0;right:0;height:1px;background:var(--gold);transform:scaleX(0);transform-origin:left;transition:transform .3s;}
+.nav-links a:hover{color:var(--warm);}
+.nav-links a:hover::after{transform:scaleX(1);}
+.nav-cta{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--black)!important;background:var(--gold);padding:9px 18px;border-radius:6px;text-decoration:none;transition:all .2s;}
+.nav-cta:hover{background:var(--gold-light);}
+.nav-cta::after{display:none!important;}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;background:none;border:none;padding:4px;}
+.hamburger span{display:block;width:22px;height:1.5px;background:var(--warm);}
+.mobile-menu{display:none;position:fixed;inset:0;background:var(--black);z-index:99;padding:100px 40px 40px;flex-direction:column;gap:24px;}
+.mobile-menu.open{display:flex;}
+.mobile-menu a{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:var(--warm);text-decoration:none;border-bottom:1px solid rgba(200,191,176,.1);padding-bottom:20px;}
+
+/* HERO */
+.hero{background:var(--black);padding:100px 40px 80px;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;top:-200px;right:-200px;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(200,168,112,.06) 0%,transparent 65%);}
+.hero-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;position:relative;z-index:1;}
+.hero-tag{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;}
+.hero-title{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(32px,4vw,52px);color:var(--cream);letter-spacing:-.5px;margin-bottom:14px;}
+.hero-title em{font-style:italic;font-weight:600;color:var(--gold);}
+.hero-sub{font-size:14px;color:var(--stone);line-height:1.7;margin-bottom:32px;}
+
+/* INFO CARDS */
+.info-cards{display:flex;flex-direction:column;gap:12px;}
+.info-card{background:rgba(42,38,32,.6);border:1px solid rgba(200,191,176,.1);border-radius:14px;padding:20px 22px;display:flex;align-items:center;gap:16px;transition:all .3s;}
+.info-card:hover{border-color:rgba(200,168,112,.3);}
+.info-card-icon{font-size:20px;flex-shrink:0;}
+.info-card-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--stone);margin-bottom:3px;}
+.info-card-value{font-size:13px;color:var(--warm);}
+
+/* FORM */
+.form-wrap{background:var(--white);border-radius:20px;padding:36px;}
+.form-title{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:22px;color:var(--dark);margin-bottom:6px;}
+.form-sub{font-size:12px;color:var(--stone);margin-bottom:24px;line-height:1.5;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--stone);margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%;background:var(--cream);border:1px solid rgba(200,191,176,.5);border-radius:8px;padding:11px 14px;color:var(--dark);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border-color .2s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold);}
+.field select option{background:var(--white);}
+.field textarea{resize:none;height:100px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.btn-submit{width:100%;padding:13px;background:var(--gold);color:var(--black);border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-top:4px;}
+.btn-submit:hover{background:var(--gold-light);}
+.form-note{font-size:10px;color:var(--stone);text-align:center;margin-top:12px;}
+
+/* EXPOSICIÓN */
+.expo-section{padding:80px 40px;background:var(--cream);}
+.expo-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
+.expo-tag{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
+.expo-title{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(26px,3vw,38px);color:var(--dark);margin-bottom:14px;}
+.expo-title em{font-style:italic;font-weight:600;}
+.expo-sub{font-size:14px;color:var(--stone);line-height:1.7;margin-bottom:24px;}
+.expo-horario{background:var(--white);border-radius:14px;padding:24px;border:1px solid rgba(200,191,176,.4);}
+.expo-horario-title{font-size:11px;font-weight:500;color:var(--dark);letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;}
+.horario-item{display:flex;justify-content:space-between;font-size:12px;color:var(--mid);padding:8px 0;border-bottom:1px solid rgba(200,191,176,.2);}
+.horario-item:last-child{border-bottom:none;}
+.horario-item span:last-child{color:var(--dark);font-weight:500;}
+.expo-map{background:var(--dark);border-radius:16px;height:280px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(200,191,176,.1);}
+.expo-map-placeholder{text-align:center;}
+.expo-map-icon{font-size:36px;margin-bottom:10px;}
+.expo-map-text{font-size:12px;color:var(--stone);}
+.expo-map-addr{font-size:13px;color:var(--warm);margin-top:6px;}
+
+/* SUCCESS */
+.success-msg{display:none;text-align:center;padding:28px;background:rgba(200,168,112,.08);border:1px solid rgba(200,168,112,.25);border-radius:12px;margin-top:16px;}
+.success-msg h3{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--dark);margin-bottom:6px;}
+.success-msg p{font-size:12px;color:var(--stone);}
+
+footer{background:var(--black);border-top:1px solid rgba(200,191,176,.08);padding:32px 40px;}
+.footer-bottom{display:flex;justify-content:space-between;align-items:center;max-width:1100px;margin:0 auto;}
+.footer-copy{font-size:11px;color:var(--stone);}
+.footer-links{display:flex;gap:20px;}
+.footer-links a{font-size:11px;color:var(--stone);text-decoration:none;transition:color .2s;}
+.footer-links a:hover{color:var(--warm);}
+
+@media(max-width:900px){
+  nav{padding:0 20px;}
+  .nav-links{display:none;}
+  .hamburger{display:flex;}
+  .hero{padding:90px 24px 60px;}
+  .hero-inner{grid-template-columns:1fr;}
+  .expo-section{padding:60px 24px;}
+  .expo-inner{grid-template-columns:1fr;}
+  .field-row{grid-template-columns:1fr;}
+  footer{padding:24px 20px;}
+  .footer-bottom{flex-direction:column;gap:12px;text-align:center;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+      <rect x="2" y="2" width="44" height="44" rx="10" fill="#2a2620"/>
+      <line x1="16" y1="12" x2="16" y2="36" stroke="#f4f1ec" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="16" y1="24" x2="32" y2="12" stroke="#f4f1ec" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="16" y1="24" x2="32" y2="36" stroke="#f4f1ec" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="38" cy="24" r="3" fill="#c8a870"/>
+    </svg>
+    <span class="nav-logo-name">lova</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="catalogo.html">Catálogo</a></li>
+    <li><a href="mobile-homes.html">Mobile Homes</a></li>
+    <li><a href="b2b.html">B2B</a></li>
+    <li><a href="contacto.html" class="nav-cta">Contactar</a></li>
+  </ul>
+  <button class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+</nav>
+
+<div class="mobile-menu" id="mobileMenu">
+  <a href="catalogo.html" onclick="toggleMenu()">Catálogo</a>
+  <a href="mobile-homes.html" onclick="toggleMenu()">Mobile Homes</a>
+  <a href="b2b.html" onclick="toggleMenu()">B2B</a>
+  <a href="contacto.html" onclick="toggleMenu()" style="color:var(--gold)">Contactar</a>
+</div>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-tag au au1">Estamos aquí</div>
+      <h1 class="hero-title au au2">Hablemos sobre<br><em>lo que necesitas.</em></h1>
+      <p class="hero-sub au au3">Tanto si tienes una pregunta sobre un producto, quieres solicitar un presupuesto B2B o te interesa una mobile home, escríbenos y te respondemos en menos de 24 horas.</p>
+      <div class="info-cards au au3">
+        <div class="info-card">
+          <div class="info-card-icon">✉️</div>
+          <div>
+            <div class="info-card-label">Email</div>
+            <div class="info-card-value">contacto@klova.es</div>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">📱</div>
+          <div>
+            <div class="info-card-label">WhatsApp / Teléfono</div>
+            <div class="info-card-value">+34 600 000 000</div>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon">🕐</div>
+          <div>
+            <div class="info-card-label">Respuesta</div>
+            <div class="info-card-value">En menos de 24 horas</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-wrap au au2">
+      <div class="form-title">Envíanos un mensaje</div>
+      <div class="form-sub">Te respondemos en menos de 24h en días laborables.</div>
+      <div class="field-row">
+        <div class="field"><label>Nombre *</label><input type="text" id="nombre" placeholder="Tu nombre"></div>
+        <div class="field"><label>Email *</label><input type="email" id="email" placeholder="tu@email.com"></div>
+      </div>
+      <div class="field">
+        <label>Motivo de contacto</label>
+        <select id="motivo">
+          <option>Consulta sobre productos</option>
+          <option>Solicitud de precio B2B</option>
+          <option>Información Mobile Homes</option>
+          <option>Pedido o presupuesto</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="field"><label>Mensaje *</label><textarea id="mensaje" placeholder="Cuéntanos qué necesitas..."></textarea></div>
+      <button class="btn-submit" onclick="enviarContacto()">Enviar mensaje →</button>
+      <div class="form-note">Sin spam. Solo te contactamos para responder tu consulta.</div>
+      <div class="success-msg" id="successMsg">
+        <h3>✓ Mensaje enviado</h3>
+        <p>Te respondemos en menos de 24 horas. ¡Gracias por contactar con Klova!</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPOSICIÓN -->
+<section class="expo-section">
+  <div class="expo-inner">
+    <div class="reveal">
+      <div class="expo-tag">Visítanos</div>
+      <h2 class="expo-title">Ven a ver nuestros productos<br><em>en persona.</em></h2>
+      <p class="expo-sub">Tenemos un espacio de exposición donde puedes ver y tocar los herrajes y las mobile homes antes de decidir. Visita concertada previa.</p>
+      <div class="expo-horario">
+        <div class="expo-horario-title">Horario de visitas</div>
+        <div class="horario-item"><span>Lunes — Viernes</span><span>9:00 — 18:00</span></div>
+        <div class="horario-item"><span>Sábado</span><span>Previa cita</span></div>
+        <div class="horario-item"><span>Domingo</span><span>Cerrado</span></div>
+      </div>
+      <p style="font-size:12px;color:var(--stone);margin-top:16px;line-height:1.5;">📍 Córdoba, España · Dirección exacta al concertar visita</p>
+    </div>
+    <div class="expo-map reveal">
+      <div class="expo-map-placeholder">
+        <div class="expo-map-icon">📍</div>
+        <div class="expo-map-text">Espacio de exposición</div>
+        <div class="expo-map-addr">Córdoba, España</div>
+        <div style="font-size:11px;color:var(--stone);margin-top:8px;">Dirección al concertar visita</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 Klova · Hardware & Living Spaces</div>
+    <div class="footer-links">
+      <a href="index.html">Inicio</a>
+      <a href="catalogo.html">Catálogo</a>
+      <a href="mobile-homes.html">Mobile Homes</a>
+      <a href="b2b.html">B2B</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+function toggleMenu(){document.getElementById('mobileMenu').classList.toggle('open');}
+const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');});},{threshold:.08});
+document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+
+function enviarContacto() {
+  const nombre = document.getElementById('nombre').value;
+  const email = document.getElementById('email').value;
+  const mensaje = document.getElementById('mensaje').value;
+  if (!nombre || !email || !mensaje) { alert('Por favor rellena los campos obligatorios'); return; }
+  document.getElementById('successMsg').style.display = 'block';
+  document.querySelector('.btn-submit').style.display = 'none';
+}
+</script>
+</body>
+</html>

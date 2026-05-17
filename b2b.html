@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Klova B2B · Precios especiales para carpinterías, instaladores y empresas de camperización. Descuentos por volumen y pago aplazado.">
+<title>B2B · Klova</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--black:#1e1c18;--dark:#2a2620;--mid:#5a5248;--stone:#8a8078;--warm:#c8bfb0;--cream:#f4f1ec;--white:#faf8f5;--gold:#c8a870;--gold-dark:#8a6830;--gold-light:#e8d4a8;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--cream);color:var(--dark);font-family:'DM Sans',sans-serif;font-weight:300;overflow-x:hidden;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.au{opacity:0;animation:fadeUp .8s ease forwards;}
+.au1{animation-delay:.1s}.au2{animation-delay:.25s}.au3{animation-delay:.4s}
+.reveal{opacity:0;transform:translateY(20px);transition:opacity .7s ease,transform .7s ease;}
+.reveal.visible{opacity:1;transform:translateY(0);}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;height:64px;padding:0 40px;display:flex;align-items:center;justify-content:space-between;background:rgba(30,28,24,.96);backdrop-filter:blur(16px);border-bottom:1px solid rgba(200,191,176,.08);}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-logo-name{font-family:'Cormorant Garamond',serif;font-weight:600;font-style:italic;font-size:22px;color:var(--cream);letter-spacing:1px;}
+.nav-links{display:flex;align-items:center;gap:28px;list-style:none;}
+.nav-links a{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--stone);text-decoration:none;transition:color .2s;position:relative;}
+.nav-links a::after{content:'';position:absolute;bottom:-4px;left:0;right:0;height:1px;background:var(--gold);transform:scaleX(0);transform-origin:left;transition:transform .3s;}
+.nav-links a:hover,.nav-links a.active{color:var(--warm);}
+.nav-links a.active::after,.nav-links a:hover::after{transform:scaleX(1);}
+.nav-cta{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--black)!important;background:var(--gold);padding:9px 18px;border-radius:6px;text-decoration:none;transition:all .2s;}
+.nav-cta:hover{background:var(--gold-light);}
+.nav-cta::after{display:none!important;}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;background:none;border:none;padding:4px;}
+.hamburger span{display:block;width:22px;height:1.5px;background:var(--warm);}
+.mobile-menu{display:none;position:fixed;inset:0;background:var(--black);z-index:99;padding:100px 40px 40px;flex-direction:column;gap:24px;}
+.mobile-menu.open{display:flex;}
+.mobile-menu a{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:var(--warm);text-decoration:none;border-bottom:1px solid rgba(200,191,176,.1);padding-bottom:20px;}
+
+.page-header{background:var(--black);padding:100px 40px 60px;position:relative;overflow:hidden;}
+.page-header::before{content:'';position:absolute;top:-200px;right:-200px;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(200,168,112,.06) 0%,transparent 65%);}
+.ph-inner{max-width:1100px;margin:0 auto;position:relative;z-index:1;}
+.ph-tag{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:12px;}
+.ph-title{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(32px,4vw,52px);color:var(--cream);letter-spacing:-.5px;margin-bottom:12px;}
+.ph-title em{font-style:italic;font-weight:600;color:var(--gold);}
+.ph-sub{font-size:14px;color:var(--stone);max-width:520px;line-height:1.7;}
+
+.s{padding:80px 40px;}
+.s-inner{max-width:1100px;margin:0 auto;}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:64px;}
+.stat-card{background:var(--white);border:1px solid rgba(200,191,176,.4);border-radius:16px;padding:28px 20px;text-align:center;transition:all .3s;}
+.stat-card:hover{transform:translateY(-4px);border-color:rgba(200,168,112,.3);}
+.stat-num{font-family:'Cormorant Garamond',serif;font-size:40px;font-weight:300;color:var(--gold);line-height:1;margin-bottom:8px;}
+.stat-label{font-size:11px;color:var(--stone);line-height:1.4;}
+
+/* PERFILES */
+.s-tag{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
+.s-title{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(28px,3.5vw,44px);color:var(--dark);margin-bottom:14px;letter-spacing:-.5px;}
+.s-title em{font-style:italic;font-weight:600;}
+.s-sub{font-size:14px;color:var(--stone);line-height:1.7;max-width:520px;margin-bottom:48px;}
+
+.perfiles-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:64px;}
+.perfil-card{background:var(--white);border:1px solid rgba(200,191,176,.4);border-radius:16px;padding:28px;transition:all .3s;position:relative;overflow:hidden;}
+.perfil-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold),var(--gold-light));transform:scaleX(0);transform-origin:left;transition:transform .4s;}
+.perfil-card:hover{transform:translateY(-5px);box-shadow:0 16px 40px rgba(0,0,0,.06);}
+.perfil-card:hover::before{transform:scaleX(1);}
+.perfil-icon{font-size:28px;margin-bottom:14px;}
+.perfil-name{font-size:15px;font-weight:500;color:var(--dark);margin-bottom:8px;}
+.perfil-desc{font-size:13px;color:var(--stone);line-height:1.6;margin-bottom:16px;}
+.perfil-items{display:flex;flex-direction:column;gap:6px;}
+.perfil-item{font-size:11px;color:var(--mid);display:flex;align-items:center;gap:8px;}
+.perfil-item::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--gold);flex-shrink:0;}
+
+/* VENTAJAS */
+.ventajas-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.ventaja-item{display:flex;gap:16px;background:var(--white);border-radius:14px;padding:24px;border:1px solid rgba(200,191,176,.3);transition:all .3s;}
+.ventaja-item:hover{border-color:rgba(200,168,112,.3);}
+.ventaja-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:5px;}
+.ventaja-title{font-size:13px;font-weight:500;color:var(--dark);margin-bottom:5px;}
+.ventaja-text{font-size:12px;color:var(--stone);line-height:1.6;}
+
+/* FORM */
+.form-section{background:var(--dark);padding:80px 40px;}
+.form-inner{max-width:700px;margin:0 auto;}
+.form-tag{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
+.form-title{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(28px,3.5vw,42px);color:var(--cream);margin-bottom:12px;letter-spacing:-.5px;}
+.form-title em{font-style:italic;font-weight:600;color:var(--gold);}
+.form-sub{font-size:14px;color:var(--stone);line-height:1.7;margin-bottom:36px;}
+.form-card{background:rgba(42,38,32,.6);border:1px solid rgba(200,191,176,.1);border-radius:20px;padding:36px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--stone);margin-bottom:6px;}
+.field input,.field select,.field textarea{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(200,191,176,.15);border-radius:8px;padding:12px 14px;color:var(--cream);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border-color .2s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold);}
+.field input::placeholder,.field textarea::placeholder{color:var(--stone);}
+.field select option{background:var(--dark);}
+.field textarea{resize:none;height:100px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.btn-submit{width:100%;padding:14px;background:var(--gold);color:var(--black);border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-top:6px;}
+.btn-submit:hover{background:var(--gold-light);}
+.form-note{font-size:11px;color:var(--stone);text-align:center;margin-top:14px;line-height:1.5;}
+
+footer{background:var(--black);border-top:1px solid rgba(200,191,176,.08);padding:32px 40px;}
+.footer-bottom{display:flex;justify-content:space-between;align-items:center;max-width:1100px;margin:0 auto;}
+.footer-copy{font-size:11px;color:var(--stone);}
+.footer-links{display:flex;gap:20px;}
+.footer-links a{font-size:11px;color:var(--stone);text-decoration:none;transition:color .2s;}
+.footer-links a:hover{color:var(--warm);}
+
+.success-msg{display:none;text-align:center;padding:32px;background:rgba(200,168,112,.1);border:1px solid rgba(200,168,112,.3);border-radius:12px;margin-top:16px;}
+.success-msg h3{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--warm);margin-bottom:8px;}
+.success-msg p{font-size:13px;color:var(--stone);}
+
+@media(max-width:900px){
+  nav{padding:0 20px;}
+  .nav-links{display:none;}
+  .hamburger{display:flex;}
+  .page-header{padding:90px 24px 48px;}
+  .s{padding:60px 24px;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .perfiles-grid{grid-template-columns:1fr;}
+  .ventajas-grid{grid-template-columns:1fr;}
+  .form-section{padding:60px 24px;}
+  .field-row{grid-template-columns:1fr;}
+  footer{padding:24px 20px;}
+  .footer-bottom{flex-direction:column;gap:12px;text-align:center;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+      <rect x="2" y="2" width="44" height="44" rx="10" fill="#2a2620"/>
+      <line x1="16" y1="12" x2="16" y2="36" stroke="#f4f1ec" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="16" y1="24" x2="32" y2="12" stroke="#f4f1ec" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="16" y1="24" x2="32" y2="36" stroke="#f4f1ec" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="38" cy="24" r="3" fill="#c8a870"/>
+    </svg>
+    <span class="nav-logo-name">lova</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="catalogo.html">Catálogo</a></li>
+    <li><a href="mobile-homes.html">Mobile Homes</a></li>
+    <li><a href="b2b.html" class="active">B2B</a></li>
+    <li><a href="contacto.html" class="nav-cta">Contactar</a></li>
+  </ul>
+  <button class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+</nav>
+
+<div class="mobile-menu" id="mobileMenu">
+  <a href="catalogo.html" onclick="toggleMenu()">Catálogo</a>
+  <a href="mobile-homes.html" onclick="toggleMenu()">Mobile Homes</a>
+  <a href="b2b.html" onclick="toggleMenu()">B2B</a>
+  <a href="contacto.html" onclick="toggleMenu()" style="color:var(--gold)">Contactar</a>
+</div>
+
+<div class="page-header">
+  <div class="ph-inner">
+    <div class="ph-tag au au1">Para empresas y profesionales</div>
+    <h1 class="ph-title au au2">Condiciones <em>pensadas</em><br>para quien construye.</h1>
+    <p class="ph-sub au au3">Precios especiales por volumen, pago aplazado y asesoramiento técnico para carpinterías, instaladores y empresas de camperización.</p>
+  </div>
+</div>
+
+<section class="s" style="background:var(--white);">
+  <div class="s-inner">
+    <div class="stats-grid">
+      <div class="stat-card reveal">
+        <div class="stat-num">-40%</div>
+        <div class="stat-label">vs precio distribuidor tradicional</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="stat-num">48h</div>
+        <div class="stat-label">entrega desde almacén en España</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="stat-num">30d</div>
+        <div class="stat-label">pago aplazado para clientes habituales</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="stat-num">0€</div>
+        <div class="stat-label">mínimo de pedido para empezar</div>
+      </div>
+    </div>
+
+    <div class="s-tag reveal">¿Para quién?</div>
+    <h2 class="s-title reveal">Trabajamos con<br><em>profesionales del sector.</em></h2>
+    <p class="s-sub reveal">Si tu negocio consume herrajes de forma regular, tenemos condiciones que te van a interesar.</p>
+
+    <div class="perfiles-grid">
+      <div class="perfil-card reveal">
+        <div class="perfil-icon">🪵</div>
+        <div class="perfil-name">Carpinterías</div>
+        <div class="perfil-desc">Para talleres de carpintería que necesitan herrajes de forma recurrente con calidad garantizada y precios competitivos.</div>
+        <div class="perfil-items">
+          <div class="perfil-item">Bisagras y sistemas de apertura</div>
+          <div class="perfil-item">Herrajes de ensamblaje</div>
+          <div class="perfil-item">Tiradores y pomos</div>
+          <div class="perfil-item">Tornillería profesional</div>
+        </div>
+      </div>
+      <div class="perfil-card reveal">
+        <div class="perfil-icon">🚐</div>
+        <div class="perfil-name">Camperización</div>
+        <div class="perfil-desc">Empresas que transforman furgonetas y vehículos en viviendas móviles. Herrajes específicos para el sector.</div>
+        <div class="perfil-items">
+          <div class="perfil-item">Bisagras de aluminio ligeras</div>
+          <div class="perfil-item">Sistemas de apertura compactos</div>
+          <div class="perfil-item">Anclajes y fijaciones</div>
+          <div class="perfil-item">Tiradores de bajo perfil</div>
+        </div>
+      </div>
+      <div class="perfil-card reveal">
+        <div class="perfil-icon">🔧</div>
+        <div class="perfil-name">Instaladores</div>
+        <div class="perfil-desc">Profesionales de la reforma y la instalación de cocinas, baños y espacios que necesitan un proveedor de confianza.</div>
+        <div class="perfil-items">
+          <div class="perfil-item">Catálogo completo disponible</div>
+          <div class="perfil-item">Pedidos frecuentes y rápidos</div>
+          <div class="perfil-item">Asesoramiento técnico</div>
+          <div class="perfil-item">Facturación simplificada</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="s-tag reveal">Ventajas B2B</div>
+    <h2 class="s-title reveal">Todo lo que obtienes<br><em>como cliente profesional.</em></h2>
+    <div class="ventajas-grid">
+      <div class="ventaja-item reveal">
+        <div class="ventaja-dot"></div>
+        <div>
+          <div class="ventaja-title">Precios por volumen</div>
+          <div class="ventaja-text">Cuanto más pides, mejor precio. Tarifa escalonada que premia la fidelidad y el volumen de compra.</div>
+        </div>
+      </div>
+      <div class="ventaja-item reveal">
+        <div class="ventaja-dot"></div>
+        <div>
+          <div class="ventaja-title">Pago aplazado</div>
+          <div class="ventaja-text">Para clientes habituales, ofrecemos condiciones de pago a 30 días para facilitar tu tesorería.</div>
+        </div>
+      </div>
+      <div class="ventaja-item reveal">
+        <div class="ventaja-dot"></div>
+        <div>
+          <div class="ventaja-title">Asesoramiento técnico</div>
+          <div class="ventaja-text">Hablamos el idioma del sector. Te ayudamos a elegir el producto correcto para cada aplicación.</div>
+        </div>
+      </div>
+      <div class="ventaja-item reveal">
+        <div class="ventaja-dot"></div>
+        <div>
+          <div class="ventaja-title">Entrega rápida</div>
+          <div class="ventaja-text">Stock en España para los productos más demandados. Entrega en 24-48h sin esperar importaciones.</div>
+        </div>
+      </div>
+      <div class="ventaja-item reveal">
+        <div class="ventaja-dot"></div>
+        <div>
+          <div class="ventaja-title">Facturación profesional</div>
+          <div class="ventaja-text">Facturas con todos los datos fiscales, desglose de IVA y referencia de pedido para tu contabilidad.</div>
+        </div>
+      </div>
+      <div class="ventaja-item reveal">
+        <div class="ventaja-dot"></div>
+        <div>
+          <div class="ventaja-title">Catálogo exclusivo</div>
+          <div class="ventaja-text">Acceso a productos y referencias no disponibles en el catálogo público, según tus necesidades específicas.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="form-section" id="contacto-b2b">
+  <div class="form-inner">
+    <div class="form-tag reveal">Empieza hoy</div>
+    <h2 class="form-title reveal">Solicita tu <em>propuesta B2B</em><br>sin compromiso.</h2>
+    <p class="form-sub reveal">Cuéntanos qué necesitas y te enviamos una propuesta personalizada en menos de 24 horas.</p>
+    <div class="form-card reveal">
+      <div class="field-row">
+        <div class="field"><label>Nombre *</label><input type="text" id="nombre" placeholder="Tu nombre completo" required></div>
+        <div class="field"><label>Empresa *</label><input type="text" id="empresa" placeholder="Nombre de la empresa" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Email *</label><input type="email" id="email" placeholder="correo@empresa.com" required></div>
+        <div class="field"><label>Teléfono</label><input type="tel" id="telefono" placeholder="+34 600 000 000"></div>
+      </div>
+      <div class="field">
+        <label>Tipo de negocio *</label>
+        <select id="tipo">
+          <option value="">Selecciona...</option>
+          <option>Carpintería</option>
+          <option>Camperización</option>
+          <option>Instalador / Reformista</option>
+          <option>Constructor / Promotor</option>
+          <option>Tienda o distribuidor</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Volumen estimado mensual</label>
+        <select id="volumen">
+          <option value="">Selecciona...</option>
+          <option>Menos de 500€/mes</option>
+          <option>500€ - 2.000€/mes</option>
+          <option>2.000€ - 5.000€/mes</option>
+          <option>Más de 5.000€/mes</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>¿Qué productos necesitas?</label>
+        <textarea id="productos" placeholder="Describe los productos, referencias o categorías que te interesan..."></textarea>
+      </div>
+      <button class="btn-submit" onclick="enviarB2B()">Enviar solicitud →</button>
+      <div class="form-note">Te respondemos en menos de 24h · Sin compromisos</div>
+      <div class="success-msg" id="successMsg">
+        <h3>✓ Solicitud recibida</h3>
+        <p>Nos pondremos en contacto contigo en menos de 24 horas con tu propuesta personalizada.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 Klova · Hardware & Living Spaces</div>
+    <div class="footer-links">
+      <a href="index.html">Inicio</a>
+      <a href="catalogo.html">Catálogo</a>
+      <a href="mobile-homes.html">Mobile Homes</a>
+      <a href="contacto.html">Contacto</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+function toggleMenu(){document.getElementById('mobileMenu').classList.toggle('open');}
+const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');});},{threshold:.08});
+document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+
+function enviarB2B() {
+  const nombre = document.getElementById('nombre').value;
+  const email = document.getElementById('email').value;
+  const tipo = document.getElementById('tipo').value;
+  if (!nombre || !email || !tipo) { alert('Por favor rellena los campos obligatorios'); return; }
+  document.getElementById('successMsg').style.display = 'block';
+  document.querySelector('.btn-submit').style.display = 'none';
+}
+</script>
+</body>
+</html>
