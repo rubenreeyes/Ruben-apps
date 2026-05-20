@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Dashboard · Rubén</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,200;0,9..144,400;0,9..144,600;1,9..144,200;1,9..144,600&family=Geist+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDkWI1TU4an6qu8cQbt5Xsk4OKrQ-eiITI",
+  authDomain: "ruben-dashboard.firebaseapp.com",
+  projectId: "ruben-dashboard",
+  storageBucket: "ruben-dashboard.firebasestorage.app",
+  messagingSenderId: "40452541202",
+  appId: "1:40452541202:web:bc5ad8cc712773fae181cb"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+let userId = null;
+let unsubscribers = [];
+
+// Auth
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    userId = user.uid;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'flex';
+    document.getElementById('userAvatar').src = user.photoURL || '';
+    document.getElementById('userName').textContent = user.displayName?.split(' ')[0] || 'Rubén';
+    await cargarTodoFirebase();
+    iniciarSincronizacion();
+    renderTab('dashboard');
+  } else {
+    userId = null;
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display = 'none';
+  }
+});
+
+window.loginGoogle = async () => {
+  try { await signInWithPopup(auth, provider); }
+  catch(e) { console.error(e); }
+};
+
+window.logoutUser = async () => {
+  unsubscribers.forEach(u => u());
+  await signOut(auth);
+};
+
+// Firebase helpers
+async function guardarModulo(modulo, datos) {
+  if (!userId) return;
+  await setDoc(doc(db, 'users', userId, 'modulos', modulo), { data: JSON.stringify(datos), ts: Date.now() });
+}
+
+async function cargarModulo(modulo) {
+  if (!userId) return null;
+  const snap = await getDoc(doc(db, 'users', userId, 'modulos', modulo));
+  if (snap.exists()) return JSON.parse(snap.data().data);
+  return null;
+}
+
+async function cargarTodoFirebase() {
+  document.getElementById('loadingBar').style.display = 'block';
+  try {
+    const modulos = ['tareas','capital','trading','ingresos','proyectos_camp','agenda'];
+    for (const m of modulos) {
+      const d = await cargarModulo(m);
+      if (d) state[m] = d;
+    }
+  } catch(e) { console.error(e); }
+  document.getElementById('loadingBar').style.display = 'none';
+}
+
+function iniciarSincronizacion() {
+  const modulos = ['tareas','capital','trading','ingresos','proyectos_camp','agenda'];
+  modulos.forEach(m => {
+    const unsub = onSnapshot(doc(db, 'users', userId, 'modulos', m), (snap) => {
+      if (snap.exists() && snap.metadata.hasPendingWrites === false) {
+        const d = JSON.parse(snap.data().data);
+        state[m] = d;
+        actualizarUI();
+      }
+    });
+    unsubscribers.push(unsub);
+  });
+}
+
+// Exponer guardar al scope global
+window._guardarFirebase = guardarModulo;
+</script>
+
+<style>
+:root {
+  --bg: #0a0a0b;
+  --s1: #111113;
+  --s2: #18181b;
+  --s3: #222226;
+  --border: #2a2a30;
+  --border2: #333339;
+  --text: #e8e8f0;
+  --text2: #777788;
+  --text3: #444450;
+  --gold: #d4a853;
+  --gold2: #f0c870;
+  --green: #4caf82;
+  --red: #e05555;
+  --blue: #5588cc;
+  --purple: #9966cc;
+  --orange: #cc7744;
+  --teal: #44aaaa;
+  --r: 12px;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Geist Mono',monospace;font-weight:300;min-height:100vh;overflow-x:hidden;}
+
+/* LOGIN */
+#loginScreen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:24px;}
+.login-logo{font-family:'Fraunces',serif;font-size:48px;font-weight:200;letter-spacing:-2px;color:var(--text);}
+.login-logo em{font-style:italic;color:var(--gold);}
+.login-sub{font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;}
+.btn-login{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--border2);color:var(--text);padding:13px 24px;border-radius:10px;font-family:'Geist Mono',monospace;font-size:12px;cursor:pointer;transition:all .2s;margin-top:16px;}
+.btn-login:hover{border-color:var(--gold);color:var(--gold);}
+
+/* LOADING BAR */
+#loadingBar{display:none;position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),var(--green),var(--gold));background-size:200%;animation:loadAnim 1.5s linear infinite;z-index:999;}
+@keyframes loadAnim{0%{background-position:200%}100%{background-position:-200%}}
+
+/* APP LAYOUT */
+#appScreen{display:none;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto;}
+
+/* HEADER */
+.app-header{padding:16px 18px 12px;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;display:flex;justify-content:space-between;align-items:center;}
+.app-logo{font-family:'Fraunces',serif;font-size:18px;font-weight:200;letter-spacing:-0.5px;}
+.app-logo em{font-style:italic;color:var(--gold);font-weight:600;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);transition:background .3s;}
+.sync-dot.syncing{background:var(--gold);animation:pulse .8s infinite;}
+.sync-dot.error{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.user-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--border2);cursor:pointer;}
+.user-name{font-size:10px;color:var(--text2);}
+
+/* NAV */
+.app-nav{display:flex;overflow-x:auto;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:61px;z-index:99;}
+.nav-item{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 14px;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;min-width:60px;}
+.nav-item.active{border-bottom-color:var(--gold);}
+.nav-item.active .nav-icon{color:var(--gold);}
+.nav-item.active .nav-label{color:var(--gold);}
+.nav-icon{font-size:16px;color:var(--text3);transition:color .15s;}
+.nav-label{font-size:8px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;white-space:nowrap;}
+
+/* CONTENT */
+.app-content{flex:1;padding:14px 18px 80px;}
+.panel{display:none;}
+.panel.active{display:block;}
+
+/* FAB */
+.fab{position:fixed;bottom:20px;right:18px;width:48px;height:48px;border-radius:50%;background:var(--gold);border:none;color:#1a1200;font-size:20px;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(212,168,83,.35);transition:all .2s;z-index:98;font-family:'Geist Mono',monospace;}
+.fab.visible{display:flex;}
+.fab:hover{transform:scale(1.06);}
+
+/* CARDS */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px;}
+.card-sm{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:11px;}
+.card h3{font-family:'Fraunces',serif;font-weight:300;font-size:14px;color:var(--text2);margin-bottom:12px;}
+.section-label{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;margin-top:4px;}
+
+/* GRID */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+
+/* STAT WIDGET */
+.stat-w{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:12px;}
+.stat-w-label{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;}
+.stat-w-val{font-family:'Fraunces',serif;font-size:24px;font-weight:200;color:var(--text);line-height:1;}
+.stat-w-sub{font-size:9px;color:var(--text3);margin-top:3px;}
+.stat-w-val.gold{color:var(--gold);}
+.stat-w-val.green{color:var(--green);}
+.stat-w-val.red{color:var(--red);}
+
+/* PROGRESS */
+.prog-bar{height:3px;background:var(--s3);border-radius:2px;overflow:hidden;margin-top:6px;}
+.prog-fill{height:100%;border-radius:2px;transition:width .5s ease;}
+
+/* ITEMS */
+.item-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);}
+.item-row:last-child{border-bottom:none;}
+.item-label{font-size:12px;color:var(--text);}
+.item-sub{font-size:10px;color:var(--text3);margin-top:1px;}
+.item-val{font-family:'Fraunces',serif;font-size:15px;color:var(--text);}
+.item-val.gold{color:var(--gold);}
+.item-val.green{color:var(--green);}
+.item-val.red{color:var(--red);}
+
+/* BADGE */
+.badge{display:inline-block;font-size:8px;padding:2px 7px;border-radius:4px;letter-spacing:.5px;}
+.badge-gold{background:rgba(212,168,83,.15);color:var(--gold);border:1px solid rgba(212,168,83,.2);}
+.badge-green{background:rgba(76,175,130,.15);color:var(--green);border:1px solid rgba(76,175,130,.2);}
+.badge-red{background:rgba(224,85,85,.15);color:var(--red);border:1px solid rgba(224,85,85,.2);}
+.badge-blue{background:rgba(85,136,204,.15);color:var(--blue);border:1px solid rgba(85,136,204,.2);}
+.badge-purple{background:rgba(153,102,204,.15);color:var(--purple);border:1px solid rgba(153,102,204,.2);}
+
+/* FIELDS */
+.field{margin-bottom:10px;}
+.field label{display:block;font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.field input,.field select,.field textarea{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;color:var(--text);font-family:'Geist Mono',monospace;font-size:12px;outline:none;transition:border-color .2s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold);}
+.field select option{background:var(--s2);}
+.field textarea{resize:none;height:60px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+
+/* BUTTONS */
+.btn{padding:10px 16px;border:none;border-radius:8px;font-family:'Geist Mono',monospace;font-size:11px;cursor:pointer;transition:all .15s;letter-spacing:.5px;}
+.btn-primary{background:var(--gold);color:#1a1200;font-weight:500;}
+.btn-primary:hover{background:var(--gold2);}
+.btn-secondary{background:var(--s2);color:var(--text2);border:1px solid var(--border);}
+.btn-danger{background:rgba(224,85,85,.1);color:var(--red);border:1px solid rgba(224,85,85,.2);}
+.btn-full{width:100%;display:block;margin-bottom:6px;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(10,10,11,.92);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--s1);border-radius:18px 18px 0 0;border:1px solid var(--border);padding:18px 18px 40px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s ease;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-handle{width:32px;height:3px;background:var(--border2);border-radius:2px;margin:0 auto 14px;}
+.modal h3{font-family:'Fraunces',serif;font-weight:300;font-size:16px;color:var(--text2);margin-bottom:14px;}
+
+/* DASHBOARD WIDGETS */
+.hero-patrimonio{background:linear-gradient(135deg,var(--s2),var(--s1));border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:10px;position:relative;overflow:hidden;}
+.hero-patrimonio::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(212,168,83,.08),transparent);}
+.hp-label{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:5px;}
+.hp-amount{font-family:'Fraunces',serif;font-size:42px;font-weight:200;color:var(--gold);letter-spacing:-2px;line-height:1;}
+.hp-change{font-size:10px;margin-top:4px;}
+.hp-change.pos{color:var(--green);}
+.hp-change.neg{color:var(--red);}
+
+.alerts-wrap{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.alert-item{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;}
+.alert-item.urgent{border-left:3px solid var(--red);}
+.alert-item.warn{border-left:3px solid var(--gold);}
+.alert-item.info{border-left:3px solid var(--blue);}
+.alert-icon{font-size:14px;flex-shrink:0;}
+.alert-text{font-size:11px;color:var(--text);}
+.alert-sub{font-size:9px;color:var(--text3);margin-top:1px;}
+
+/* HOY */
+.hora-slot{display:flex;gap:10px;margin-bottom:1px;min-height:44px;}
+.hora-lbl{font-size:9px;color:var(--text3);width:34px;flex-shrink:0;padding-top:5px;text-align:right;}
+.hora-lbl.now{color:var(--gold);font-weight:500;}
+.hora-cont{flex:1;border-left:1px solid var(--border);padding:3px 0 3px 10px;min-height:44px;cursor:pointer;transition:background .15s;border-radius:0 6px 6px 0;}
+.hora-cont:hover{background:rgba(212,168,83,.04);}
+.hora-cont.now-line{border-left-color:var(--gold);}
+.evento-chip{background:var(--s2);border-radius:6px;padding:6px 9px;margin-bottom:3px;border-left:2px solid var(--gold);cursor:pointer;}
+.evento-chip-title{font-size:11px;color:var(--text);}
+.evento-chip-meta{font-size:9px;color:var(--text3);margin-top:1px;}
+.tarea-hoy{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:6px;}
+.tarea-check{width:16px;height:16px;border:1.5px solid var(--border2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;cursor:pointer;flex-shrink:0;transition:all .2s;}
+.tarea-check.done{background:var(--green);border-color:var(--green);color:#0a1a10;}
+
+/* TRADING */
+.op-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:7px;border-left:3px solid var(--border);}
+.op-card.win{border-left-color:var(--green);}
+.op-card.loss{border-left-color:var(--red);}
+.op-card.be{border-left-color:var(--gold);}
+.op-card.open{border-left-color:var(--blue);}
+.op-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+.op-activo{font-family:'Fraunces',serif;font-size:15px;}
+.op-pnl{font-family:'Fraunces',serif;font-size:14px;}
+.op-details{font-size:10px;color:var(--text3);}
+
+/* FONDEO */
+.fondeo-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:8px;}
+.fc-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.fc-nombre{font-family:'Fraunces',serif;font-size:15px;font-weight:300;}
+
+/* INGRESOS */
+.ing-timer{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px;}
+.timer-display{font-family:'Fraunces',serif;font-size:36px;font-weight:200;color:var(--green);letter-spacing:-1px;}
+.timer-display.running{animation:pulse 2s ease-in-out infinite;}
+
+/* PROYECTOS CAMP */
+.proj-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:8px;cursor:pointer;transition:all .2s;}
+.proj-card:hover{border-color:var(--border2);transform:translateY(-1px);}
+.proj-estado{display:inline-block;font-size:8px;padding:2px 7px;border-radius:4px;}
+.estado-presupuesto{background:rgba(85,136,204,.15);color:var(--blue);}
+.estado-fabricacion{background:rgba(212,168,83,.15);color:var(--gold);}
+.estado-entregado{background:rgba(76,175,130,.15);color:var(--green);}
+.estado-cobrado{background:rgba(76,175,130,.25);color:var(--green);}
+
+/* CAPITAL */
+.cuenta-chip{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px;border-left:2px solid var(--border);}
+
+/* TOAST */
+.toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--s3);color:var(--text);border:1px solid var(--border2);padding:8px 16px;border-radius:16px;font-size:11px;transition:transform .3s;z-index:999;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+/* LOGOUT */
+.logout-btn{font-size:9px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:'Geist Mono',monospace;padding:2px;}
+.logout-btn:hover{color:var(--text);}
+
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.slide-up{animation:slideUp .3s ease forwards;}
+</style>
+</head>
+<body>
+
+<div id="loadingBar"></div>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-logo">Mi <em>Dashboard</em></div>
+  <div class="login-sub">Rubén Reyes Bermudo · Panel personal</div>
+  <button class="btn-login" onclick="loginGoogle()">
+    <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    Entrar con Google
+  </button>
+</div>
+
+<!-- APP -->
+<div id="appScreen">
+
+  <!-- HEADER -->
+  <div class="app-header">
+    <div class="app-logo">Mi <em>Dashboard</em></div>
+    <div class="header-right">
+      <div class="sync-dot" id="syncDot" title="Sincronizado"></div>
+      <span class="user-name" id="userName"></span>
+      <img class="user-avatar" id="userAvatar" src="" onclick="logoutUser()">
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="app-nav" id="appNav">
+    <div class="nav-item active" onclick="renderTab('dashboard')">
+      <div class="nav-icon">⬛</div>
+      <div class="nav-label">Inicio</div>
+    </div>
+    <div class="nav-item" onclick="renderTab('hoy')">
+      <div class="nav-icon">📅</div>
+      <div class="nav-label">Hoy</div>
+    </div>
+    <div class="nav-item" onclick="renderTab('tareas')">
+      <div class="nav-icon">✓</div>
+      <div class="nav-label">Tareas</div>
+    </div>
+    <div class="nav-item" onclick="renderTab('trading')">
+      <div class="nav-icon">📈</div>
+      <div class="nav-label">Trading</div>
+    </div>
+    <div class="nav-item" onclick="renderTab('capital')">
+      <div class="nav-icon">💰</div>
+      <div class="nav-label">Capital</div>
+    </div>
+    <div class="nav-item" onclick="renderTab('ingresos')">
+      <div class="nav-icon">🪵</div>
+      <div class="nav-label">Ingresos</div>
+    </div>
+    <div class="nav-item" onclick="renderTab('camper')">
+      <div class="nav-icon">🚐</div>
+      <div class="nav-label">Camper</div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="app-content">
+    <div class="panel active" id="panel-dashboard"></div>
+    <div class="panel" id="panel-hoy"></div>
+    <div class="panel" id="panel-tareas"></div>
+    <div class="panel" id="panel-trading"></div>
+    <div class="panel" id="panel-capital"></div>
+    <div class="panel" id="panel-ingresos"></div>
+    <div class="panel" id="panel-camper"></div>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fabBtn">+</button>
+
+<!-- MODALES -->
+<div class="modal-overlay" id="modalEvento"><div class="modal">
+  <div class="modal-handle"></div>
+  <h3 id="mEvTitulo">Nuevo evento</h3>
+  <input type="hidden" id="mEvId">
+  <div class="field"><label>Título *</label><input type="text" id="mEv-titulo" placeholder="¿Qué tienes?"></div>
+  <div class="field-row">
+    <div class="field"><label>Inicio</label><input type="time" id="mEv-inicio"></div>
+    <div class="field"><label>Fin</label><input type="time" id="mEv-fin"></div>
+  </div>
+  <div class="field"><label>Notas</label><textarea id="mEv-notas"></textarea></div>
+  <button class="btn btn-primary btn-full" onclick="guardarEvento()">Guardar</button>
+  <button class="btn btn-danger btn-full" id="mEvDel" style="display:none" onclick="eliminarEvento()">Eliminar</button>
+  <button class="btn btn-secondary btn-full" onclick="cerrarModal('modalEvento')">Cancelar</button>
+</div></div>
+
+<div class="modal-overlay" id="modalTarea"><div class="modal">
+  <div class="modal-handle"></div>
+  <h3 id="mTaTitulo">Nueva tarea</h3>
+  <input type="hidden" id="mTaId">
+  <div class="field"><label>Título *</label><input type="text" id="mTa-titulo" placeholder="¿Qué hay que hacer?"></div>
+  <div class="field"><label>Descripción</label><textarea id="mTa-desc"></textarea></div>
+  <div class="field"><label>Proyecto</label>
+    <select id="mTa-proyecto">
+      <option value="uni">Universidad</option>
+      <option value="trading">Trading</option>
+      <option value="klova">Klova</option>
+      <option value="camper">Camper & Metacrilato</option>
+      <option value="ia">Negocio IA</option>
+      <option value="personal">Personal</option>
+    </select>
+  </div>
+  <div class="field"><label>Prioridad</label>
+    <select id="mTa-prioridad">
+      <option value="">Sin prioridad</option>
+      <option value="urgente">🔴 Urgente</option>
+      <option value="importante">🟡 Importante</option>
+      <option value="largo">🔵 Largo plazo</option>
+    </select>
+  </div>
+  <div class="field"><label>Fecha límite</label><input type="date" id="mTa-fecha"></div>
+  <div class="field"><label>Notas</label><textarea id="mTa-notas"></textarea></div>
+  <button class="btn btn-primary btn-full" onclick="guardarTarea()">Guardar</button>
+  <button class="btn btn-danger btn-full" id="mTaDel" style="display:none" onclick="eliminarTarea()">Eliminar</button>
+  <button class="btn btn-secondary btn-full" onclick="cerrarModal('modalTarea')">Cancelar</button>
+</div></div>
+
+<div class="modal-overlay" id="modalOp"><div class="modal">
+  <div class="modal-handle"></div>
+  <h3 id="mOpTitulo">Nueva operación</h3>
+  <input type="hidden" id="mOpId">
+  <div class="field-row">
+    <div class="field"><label>Activo</label>
+      <select id="mOp-activo">
+        <option>TSLA</option><option>XAUUSD</option><option>EURUSD</option><option>Otro</option>
+      </select>
+    </div>
+    <div class="field"><label>Cuenta</label>
+      <select id="mOp-cuenta">
+        <option value="personal">Personal</option>
+        <option value="fondeo1">Fondeo #1</option>
+        <option value="fondeo2">Fondeo #2</option>
+      </select>
+    </div>
+  </div>
+  <div class="field"><label>Dirección</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button id="dirLong" class="btn btn-secondary" onclick="setDir('long')" style="border-color:var(--green);color:var(--green)">▲ LONG</button>
+      <button id="dirShort" class="btn btn-secondary" onclick="setDir('short')">▼ SHORT</button>
+    </div>
+  </div>
+  <div class="field-row">
+    <div class="field"><label>Entrada</label><input type="number" id="mOp-entrada" step="0.0001" oninput="calcRR()"></div>
+    <div class="field"><label>Stop Loss</label><input type="number" id="mOp-sl" step="0.0001" oninput="calcRR()"></div>
+  </div>
+  <div class="field"><label>Take Profit</label><input type="number" id="mOp-tp" step="0.0001" oninput="calcRR()"></div>
+  <div id="rrPreview" style="font-size:11px;color:var(--text3);margin-bottom:10px;padding:8px;background:var(--s2);border-radius:6px;">Introduce datos para calcular R:R</div>
+  <div class="field"><label>Resultado</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
+      <button class="btn btn-secondary" id="resWin" onclick="setRes('win')" style="font-size:10px;">✓ Win</button>
+      <button class="btn btn-secondary" id="resLoss" onclick="setRes('loss')" style="font-size:10px;">✗ Loss</button>
+      <button class="btn btn-secondary" id="resBe" onclick="setRes('be')" style="font-size:10px;">— BE</button>
+      <button class="btn btn-secondary" id="resOpen" onclick="setRes('open')" style="font-size:10px;border-color:var(--blue);color:var(--blue);">⏳</button>
+    </div>
+  </div>
+  <div class="field"><label>P&L € (real)</label><input type="number" id="mOp-pnl" step="0.01"></div>
+  <div class="field"><label>Setup</label><textarea id="mOp-setup"></textarea></div>
+  <div class="field"><label>Fecha</label><input type="date" id="mOp-fecha"></div>
+  <button class="btn btn-primary btn-full" onclick="guardarOp()">Guardar</button>
+  <button class="btn btn-danger btn-full" id="mOpDel" style="display:none" onclick="eliminarOp()">Eliminar</button>
+  <button class="btn btn-secondary btn-full" onclick="cerrarModal('modalOp')">Cancelar</button>
+</div></div>
+
+<div class="modal-overlay" id="modalIngreso"><div class="modal">
+  <div class="modal-handle"></div>
+  <h3 id="mIngTitulo">Nuevo registro</h3>
+  <input type="hidden" id="mIngId">
+  <div class="field"><label>Tipo</label>
+    <select id="mIng-tipo">
+      <option value="pct">% Beneficio</option>
+      <option value="hrs">Horas</option>
+      <option value="pzs">Pieza fabricada</option>
+    </select>
+  </div>
+  <div class="field"><label>Importe €</label><input type="number" id="mIng-importe" step="0.01"></div>
+  <div class="field"><label>Descripción</label><input type="text" id="mIng-desc" placeholder="Referencia o descripción"></div>
+  <div class="field"><label>Fecha</label><input type="date" id="mIng-fecha"></div>
+  <button class="btn btn-primary btn-full" onclick="guardarIngreso()">Guardar</button>
+  <button class="btn btn-danger btn-full" id="mIngDel" style="display:none" onclick="eliminarIngreso()">Eliminar</button>
+  <button class="btn btn-secondary btn-full" onclick="cerrarModal('modalIngreso')">Cancelar</button>
+</div></div>
+
+<div class="modal-overlay" id="modalProyecto"><div class="modal">
+  <div class="modal-handle"></div>
+  <h3 id="mPrTitulo">Nuevo proyecto</h3>
+  <input type="hidden" id="mPrId">
+  <div class="field"><label>Cliente / Nombre *</label><input type="text" id="mPr-nombre" placeholder="Cliente o descripción del proyecto"></div>
+  <div class="field"><label>Descripción</label><textarea id="mPr-desc" placeholder="Tipo de trabajo, detalles..."></textarea></div>
+  <div class="field"><label>Estado</label>
+    <select id="mPr-estado">
+      <option value="presupuesto">📋 Presupuestando</option>
+      <option value="fabricacion">🔧 En fabricación</option>
+      <option value="entregado">✓ Entregado</option>
+      <option value="cobrado">💰 Cobrado</option>
+    </select>
+  </div>
+  <div class="field-row">
+    <div class="field"><label>Presupuesto €</label><input type="number" id="mPr-presupuesto" step="0.01"></div>
+    <div class="field"><label>Coste materiales €</label><input type="number" id="mPr-materiales" step="0.01"></div>
+  </div>
+  <div class="field-row">
+    <div class="field"><label>Horas trabajadas</label><input type="number" id="mPr-horas" step="0.5"></div>
+    <div class="field"><label>€/hora</label><input type="number" id="mPr-preciohora" value="25" step="0.5"></div>
+  </div>
+  <div class="field"><label>Otros costes €</label><input type="number" id="mPr-otros" step="0.01"></div>
+  <div class="field"><label>Fecha entrega</label><input type="date" id="mPr-fecha"></div>
+  <div id="mPrResumen" style="background:var(--s2);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;color:var(--text2);display:none;"></div>
+  <button class="btn btn-primary btn-full" onclick="guardarProyecto()">Guardar proyecto</button>
+  <button class="btn btn-danger btn-full" id="mPrDel" style="display:none" onclick="eliminarProyecto()">Eliminar</button>
+  <button class="btn btn-secondary btn-full" onclick="cerrarModal('modalProyecto')">Cancelar</button>
+</div></div>
+
+<div class="modal-overlay" id="modalCapital"><div class="modal">
+  <div class="modal-handle"></div>
+  <h3>Actualizar capital</h3>
+  <div class="field"><label>Cuenta</label>
+    <select id="mCap-cuenta">
+      <option value="trading">Trading · Quantfury</option>
+      <option value="etfs">ETFs · Trade Republic</option>
+      <option value="cripto">Cripto</option>
+      <option value="revolut">Revolut · Colchón</option>
+      <option value="pronosticos">Pronósticos</option>
+      <option value="impuestos">Cuenta impuestos</option>
+      <option value="carpinteria">Reserva carpintería</option>
+    </select>
+  </div>
+  <div class="field"><label>Nuevo saldo €</label><input type="number" id="mCap-saldo" step="0.01"></div>
+  <div class="field"><label>Nota</label><input type="text" id="mCap-nota" placeholder="Motivo del cambio"></div>
+  <button class="btn btn-primary btn-full" onclick="guardarCapital()">Guardar</button>
+  <button class="btn btn-secondary btn-full" onclick="cerrarModal('modalCapital')">Cancelar</button>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── ESTADO ───────────────────────────────────────────
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const PROYECTOS = {
+  uni:{nombre:'Universidad',color:'#5588cc'},
+  trading:{nombre:'Trading',color:'#4caf82'},
+  klova:{nombre:'Klova',color:'#d4a853'},
+  camper:{nombre:'Camper & Metacrilato',color:'#cc7744'},
+  ia:{nombre:'Negocio IA',color:'#9966cc'},
+  personal:{nombre:'Personal',color:'#44aaaa'}
+};
+
+let state = {
+  tareas: [],
+  agenda: {},
+  trading: { operaciones: [], cuentasFondeo: [], capitalPersonal: { actual: 6400, historial: [] } },
+  capital: {
+    cuentas: { trading: 6400, etfs: 3000, cripto: 0, revolut: 6000, pronosticos: 2000, impuestos: 0, carpinteria: 0 },
+    historial: [],
+    config: { gastos: 32, colchon: 8, trading: 24, etfs: 24, pronosticos: 3, carpinteria: 8, ivaPct: 21, irpfPct: 25, colchonObjetivo: 10000 }
+  },
+  ingresos: {},
+  proyectos_camp: []
+};
+
+let tabActiva = 'dashboard';
+let opDir = 'long';
+let opRes = 'open';
+let timerInterval = null, timerStart = null, timerPausado = 0, timerRunning = false;
+let saveQueue = {};
+let editIds = {};
+
+// ─── HELPERS ──────────────────────────────────────────
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+function fmt(n){ return Math.abs(n||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtN(v){ return parseFloat(v)||0; }
+function hoyISO(){ return new Date().toISOString().split('T')[0]; }
+function mesKey(){ return new Date().getFullYear()+'-'+new Date().getMonth(); }
+function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+function diasRest(f){
+  if(!f) return null;
+  const [y,m,d]=f.split('-').map(Number);
+  const hoy=new Date(); const hMs=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()).getTime();
+  return Math.ceil((new Date(y,m-1,d).getTime()-hMs)/86400000);
+}
+
+// ─── GUARDAR FIREBASE ──────────────────────────────────
+function guardar(modulo) {
+  const dot = document.getElementById('syncDot');
+  dot.className = 'sync-dot syncing';
+  if (saveQueue[modulo]) clearTimeout(saveQueue[modulo]);
+  saveQueue[modulo] = setTimeout(async () => {
+    try {
+      await window._guardarFirebase(modulo, state[modulo]);
+      dot.className = 'sync-dot';
+    } catch(e) { dot.className = 'sync-dot error'; }
+  }, 800);
+}
+
+function actualizarUI() {
+  const tabs = ['dashboard','hoy','tareas','trading','capital','ingresos','camper'];
+  if (tabs.includes(tabActiva)) renderTab(tabActiva, true);
+}
+
+// ─── MODALES ──────────────────────────────────────────
+function abrirModal(id){ document.getElementById(id).classList.add('open'); document.body.style.overflow='hidden'; }
+function cerrarModal(id){ document.getElementById(id).classList.remove('open'); document.body.style.overflow=''; }
+
+// ─── TABS ─────────────────────────────────────────────
+function renderTab(id, silent=false) {
+  if (!silent) {
+    tabActiva = id;
+    document.querySelectorAll('.nav-item').forEach((n,i)=>{
+      const ids=['dashboard','hoy','tareas','trading','capital','ingresos','camper'];
+      n.classList.toggle('active',ids[i]===id);
+    });
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('panel-'+id).classList.add('active');
+  }
+  const fab = document.getElementById('fabBtn');
+  fab.className = 'fab';
+  if (['hoy','tareas','trading','ingresos','camper'].includes(id)) fab.className = 'fab visible';
+
+  if(id==='dashboard') renderDashboard();
+  else if(id==='hoy') renderHoy();
+  else if(id==='tareas') renderTareas();
+  else if(id==='trading') renderTrading();
+  else if(id==='capital') renderCapital();
+  else if(id==='ingresos') renderIngresos();
+  else if(id==='camper') renderCamper();
+
+  fab.onclick = {
+    hoy: ()=>abrirModalEvento(new Date().getHours().toString().padStart(2,'0')+':00'),
+    tareas: ()=>abrirModalTarea(),
+    trading: ()=>abrirModalOp(),
+    ingresos: ()=>abrirModalIngreso(),
+    camper: ()=>abrirModalProyecto()
+  }[id] || null;
+}
+
+// ─── DASHBOARD ────────────────────────────────────────
+function renderDashboard() {
+  const el = document.getElementById('panel-dashboard');
+  const patrimonio = Object.entries(state.capital.cuentas).filter(([k])=>k!=='impuestos').reduce((s,[,v])=>s+v,0);
+  const ops = (state.trading.operaciones||[]).filter(o=>o.resultado!=='open');
+  const pnlTrading = ops.reduce((s,o)=>s+(o.pnl||0),0);
+  const tareasUrgentes = (state.tareas||[]).filter(t=>!t.done&&t.prioridad==='urgente');
+  const tareasVencidas = (state.tareas||[]).filter(t=>!t.done&&t.fecha&&diasRest(t.fecha)<0);
+  const mesActual = mesKey();
+  const ingMes = ((state.ingresos||{})[mesActual]||[]).reduce((s,r)=>s+r.importe,0);
+  const proyActivos = (state.proyectos_camp||[]).filter(p=>p.estado==='fabricacion').length;
+
+  // Alertas
+  const alertas = [];
+  if(tareasVencidas.length) alertas.push({tipo:'urgent',icon:'⚠️',text:`${tareasVencidas.length} tarea${tareasVencidas.length>1?'s':''} vencida${tareasVencidas.length>1?'s':''}`,sub:'Requieren atención inmediata',tab:'tareas'});
+  if(tareasUrgentes.length) alertas.push({tipo:'warn',icon:'🔴',text:`${tareasUrgentes.length} tarea${tareasUrgentes.length>1?'s':''} urgente${tareasUrgentes.length>1?'s':''}`,sub:'Pendientes de completar',tab:'tareas'});
+  if(proyActivos) alertas.push({tipo:'info',icon:'🚐',text:`${proyActivos} proyecto${proyActivos>1?'s':''} en fabricación`,sub:'Camper & Metacrilato',tab:'camper'});
+
+  el.innerHTML = `
+    <div class="hero-patrimonio slide-up">
+      <div class="hp-label">Patrimonio neto total</div>
+      <div class="hp-amount">€${fmt(patrimonio)}</div>
+      <div class="hp-change pos">Trading P&L: ${pnlTrading>=0?'+':''}€${fmt(Math.abs(pnlTrading))}</div>
+    </div>
+
+    ${alertas.length?`<div class="alerts-wrap">${alertas.map(a=>`
+      <div class="alert-item ${a.tipo}" onclick="renderTab('${a.tab}')">
+        <div class="alert-icon">${a.icon}</div>
+        <div><div class="alert-text">${a.text}</div><div class="alert-sub">${a.sub}</div></div>
+      </div>`).join('')}</div>`:''}
+
+    <div class="section-label">Resumen del mes · ${MESES[new Date().getMonth()]}</div>
+    <div class="grid2" style="margin-bottom:10px;">
+      <div class="stat-w"><div class="stat-w-label">Ingresos carpintería</div><div class="stat-w-val gold">€${fmt(ingMes)}</div></div>
+      <div class="stat-w"><div class="stat-w-label">Capital personal</div><div class="stat-w-val">€${fmt(state.capital.cuentas.trading||0)}</div></div>
+    </div>
+
+    <div class="section-label">Cuentas</div>
+    <div class="grid2" style="margin-bottom:10px;">
+      ${Object.entries(state.capital.cuentas).map(([k,v])=>`
+        <div class="cuenta-chip" onclick="renderTab('capital')" style="border-left-color:${k==='trading'?'var(--gold)':k==='etfs'?'var(--green)':k==='impuestos'?'var(--red)':'var(--blue)'}">
+          <div style="font-size:9px;color:var(--text3);margin-bottom:3px;">${k==='pronosticos'?'Pronósticos':k.charAt(0).toUpperCase()+k.slice(1)}</div>
+          <div style="font-family:'Fraunces',serif;font-size:16px;color:${k==='impuestos'?'var(--red)':'var(--text)'}">€${fmt(v)}</div>
+        </div>`).join('')}
+    </div>
+
+    <div class="section-label">Tareas urgentes</div>
+    ${tareasUrgentes.slice(0,3).map(t=>`
+      <div class="tarea-hoy" style="border-left:2px solid ${PROYECTOS[t.proyectoId]?.color||'var(--border)'}">
+        <div class="tarea-check ${t.done?'done':''}" onclick="toggleTarea('${t.id}')">✓</div>
+        <div>
+          <div style="font-size:12px;color:var(--text);">${t.titulo}</div>
+          <div style="font-size:9px;color:var(--text3);">${PROYECTOS[t.proyectoId]?.nombre||''}</div>
+        </div>
+      </div>`).join('')||'<div style="font-size:11px;color:var(--text3);padding:8px 0;">Sin tareas urgentes ✓</div>'}
+
+    <div style="margin-top:10px;text-align:center;">
+      <button class="btn btn-secondary" onclick="logoutUser()" style="font-size:10px;color:var(--text3);">Cerrar sesión</button>
+    </div>`;
+}
+
+// ─── HOY ──────────────────────────────────────────────
+function renderHoy() {
+  const el = document.getElementById('panel-hoy');
+  const ahora = new Date();
+  const horaActual = ahora.getHours();
+  const fechaKey = hoyISO();
+  const eventosHoy = (state.agenda||{})[fechaKey]||[];
+  const DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const MESES_ES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+  const tareasHoy = (state.tareas||[]).filter(t=>{
+    if(t.done) return false;
+    if(t.fecha===fechaKey) return true;
+    if(!t.fecha&&t.prioridad==='urgente') return true;
+    return false;
+  });
+
+  let slots='';
+  for(let h=7;h<=23;h++){
+    const hs=h.toString().padStart(2,'0')+':00';
+    const isNow=h===horaActual;
+    const evs=eventosHoy.filter(e=>parseInt(e.inicio)===h);
+    slots+=`<div class="hora-slot">
+      <div class="hora-lbl ${isNow?'now':''}">${hs}</div>
+      <div class="hora-cont ${evs.length?'tiene-evento':''} ${isNow?'now-line':''}" onclick="abrirModalEvento('${hs}')">
+        ${evs.map(e=>`<div class="evento-chip" onclick="event.stopPropagation();editarEvento('${e.id}')">
+          <div class="evento-chip-title">${e.titulo}</div>
+          <div class="evento-chip-meta">${e.inicio}${e.fin?'→'+e.fin:''}</div>
+        </div>`).join('')}
+        ${isNow&&!evs.length?`<div style="font-size:9px;color:var(--gold);padding-top:4px;">▶ Ahora · ${horaActual}:${ahora.getMinutes().toString().padStart(2,'0')}</div>`:''}
+      </div>
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div style="margin-bottom:14px;">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;">${DIAS[ahora.getDay()]}</div>
+      <div style="font-family:'Fraunces',serif;font-size:22px;font-weight:200;">${ahora.getDate()} de ${MESES_ES[ahora.getMonth()]} de ${ahora.getFullYear()}</div>
+    </div>
+    <div class="section-label">Agenda · pulsa una hora para añadir</div>
+    <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:8px;max-height:360px;overflow-y:auto;margin-bottom:14px;">${slots}</div>
+    ${tareasHoy.length?`<div class="section-label">Tareas de hoy (${tareasHoy.length})</div>${tareasHoy.map(t=>`
+      <div class="tarea-hoy" style="border-left:2px solid ${PROYECTOS[t.proyectoId]?.color||'var(--border)'}">
+        <div class="tarea-check ${t.done?'done':''}" onclick="toggleTarea('${t.id}')">✓</div>
+        <div><div style="font-size:12px;${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.titulo}</div>
+        <div style="font-size:9px;color:${PROYECTOS[t.proyectoId]?.color||'var(--text3)'};">${PROYECTOS[t.proyectoId]?.nombre||''}</div></div>
+      </div>`).join('')}`:'<div style="font-size:11px;color:var(--text3);padding:8px 0;text-align:center;">✓ Sin tareas urgentes para hoy</div>'}`;
+}
+
+function abrirModalEvento(hora) {
+  editIds.evento = null;
+  document.getElementById('mEvTitulo').textContent='Nuevo evento';
+  document.getElementById('mEvId').value='';
+  document.getElementById('mEv-titulo').value='';
+  document.getElementById('mEv-inicio').value=hora;
+  document.getElementById('mEv-fin').value='';
+  document.getElementById('mEv-notas').value='';
+  document.getElementById('mEvDel').style.display='none';
+  abrirModal('modalEvento');
+}
+function editarEvento(id) {
+  const k=hoyISO(); const e=((state.agenda||{})[k]||[]).find(x=>x.id===id);
+  if(!e) return;
+  document.getElementById('mEvTitulo').textContent='Editar evento';
+  document.getElementById('mEvId').value=id;
+  document.getElementById('mEv-titulo').value=e.titulo;
+  document.getElementById('mEv-inicio').value=e.inicio;
+  document.getElementById('mEv-fin').value=e.fin||'';
+  document.getElementById('mEv-notas').value=e.notas||'';
+  document.getElementById('mEvDel').style.display='block';
+  abrirModal('modalEvento');
+}
+function guardarEvento() {
+  const titulo=document.getElementById('mEv-titulo').value.trim();
+  if(!titulo){alert('Título obligatorio');return;}
+  const k=hoyISO();
+  if(!state.agenda) state.agenda={};
+  if(!state.agenda[k]) state.agenda[k]=[];
+  const id=document.getElementById('mEvId').value||uid();
+  const ev={id,titulo,inicio:document.getElementById('mEv-inicio').value,fin:document.getElementById('mEv-fin').value,notas:document.getElementById('mEv-notas').value};
+  const idx=state.agenda[k].findIndex(x=>x.id===id);
+  if(idx>=0) state.agenda[k][idx]=ev; else state.agenda[k].push(ev);
+  state.agenda[k].sort((a,b)=>a.inicio.localeCompare(b.inicio));
+  guardar('agenda'); cerrarModal('modalEvento'); renderHoy(); showToast('✓ Evento guardado');
+}
+function eliminarEvento() {
+  const id=document.getElementById('mEvId').value; const k=hoyISO();
+  if(!confirm('¿Eliminar?')) return;
+  state.agenda[k]=(state.agenda[k]||[]).filter(x=>x.id!==id);
+  guardar('agenda'); cerrarModal('modalEvento'); renderHoy(); showToast('Evento eliminado');
+}
+
+// ─── TAREAS ───────────────────────────────────────────
+function renderTareas() {
+  const el = document.getElementById('panel-tareas');
+  const tareas = state.tareas||[];
+  const pendientes = tareas.filter(t=>!t.done);
+  const hechas = tareas.filter(t=>t.done);
+
+  const porProyecto = {};
+  Object.keys(PROYECTOS).forEach(k=>{ const ts=pendientes.filter(t=>t.proyectoId===k); if(ts.length) porProyecto[k]=ts; });
+  const sinProyecto = pendientes.filter(t=>!PROYECTOS[t.proyectoId]);
+
+  let html='';
+  Object.entries(porProyecto).forEach(([pid,ts])=>{
+    const p=PROYECTOS[pid];
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px;"><div style="width:6px;height:6px;border-radius:50%;background:${p.color}"></div><div style="font-size:9px;color:${p.color};text-transform:uppercase;letter-spacing:1.5px;">${p.nombre}</div></div>`;
+    ts.forEach(t=>{ html+=renderTareaCard(t); });
+  });
+  if(sinProyecto.length){ html+='<div class="section-label" style="margin-top:14px;">Sin proyecto</div>'; sinProyecto.forEach(t=>{ html+=renderTareaCard(t); }); }
+  if(hechas.length){ html+=`<div class="section-label" style="margin-top:14px;opacity:.5;">Completadas (${hechas.length})</div>`; hechas.slice(0,5).forEach(t=>{ html+=renderTareaCard(t); }); }
+  if(!tareas.length) html='<div style="text-align:center;padding:40px 0;color:var(--text3);"><div style="font-size:28px;margin-bottom:8px;">✓</div><div style="font-size:12px;">Sin tareas. Pulsa + para añadir</div></div>';
+  el.innerHTML=html;
+}
+
+function renderTareaCard(t) {
+  const p=PROYECTOS[t.proyectoId]||{color:'var(--border)',nombre:''};
+  const dr=diasRest(t.fecha);
+  let fechaText=''; let fechaColor='var(--text3)';
+  if(t.fecha){ fechaText=dr===0?'Hoy':dr===1?'Mañana':dr<0?`Vencida hace ${Math.abs(dr)}d`:`${dr}d`; if(dr<0) fechaColor='var(--red)'; else if(dr<=3) fechaColor='var(--gold)'; }
+  return `<div class="op-card ${t.done?'be':''}" style="border-left-color:${t.done?'var(--text3)':p.color};cursor:pointer;" onclick="editarTarea('${t.id}')">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div style="flex:1;">
+        <div style="font-size:12px;${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.titulo}</div>
+        ${t.desc?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">${t.desc.substring(0,60)}</div>`:''}
+        <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
+          ${t.prioridad?`<span class="badge badge-${t.prioridad==='urgente'?'red':t.prioridad==='importante'?'gold':'blue'}">${t.prioridad}</span>`:''}
+          ${fechaText?`<span style="font-size:8px;color:${fechaColor};">📅 ${fechaText}</span>`:''}
+        </div>
+      </div>
+      <div class="tarea-check ${t.done?'done':''}" onclick="event.stopPropagation();toggleTarea('${t.id}')">${t.done?'✓':''}</div>
+    </div>
+  </div>`;
+}
+
+function toggleTarea(id) {
+  const t=(state.tareas||[]).find(x=>x.id===id);
+  if(t){ t.done=!t.done; guardar('tareas'); actualizarUI(); }
+}
+
+function abrirModalTarea() {
+  editIds.tarea=null;
+  document.getElementById('mTaTitulo').textContent='Nueva tarea';
+  document.getElementById('mTaId').value='';
+  document.getElementById('mTa-titulo').value='';
+  document.getElementById('mTa-desc').value='';
+  document.getElementById('mTa-prioridad').value='';
+  document.getElementById('mTa-fecha').value='';
+  document.getElementById('mTa-notas').value='';
+  document.getElementById('mTaDel').style.display='none';
+  abrirModal('modalTarea');
+}
+function editarTarea(id) {
+  const t=(state.tareas||[]).find(x=>x.id===id); if(!t) return;
+  document.getElementById('mTaTitulo').textContent='Editar tarea';
+  document.getElementById('mTaId').value=id;
+  document.getElementById('mTa-titulo').value=t.titulo;
+  document.getElementById('mTa-desc').value=t.desc||'';
+  document.getElementById('mTa-proyecto').value=t.proyectoId||'personal';
+  document.getElementById('mTa-prioridad').value=t.prioridad||'';
+  document.getElementById('mTa-fecha').value=t.fecha||'';
+  document.getElementById('mTa-notas').value=t.notas||'';
+  document.getElementById('mTaDel').style.display='block';
+  abrirModal('modalTarea');
+}
+function guardarTarea() {
+  const titulo=document.getElementById('mTa-titulo').value.trim();
+  if(!titulo){alert('Título obligatorio');return;}
+  if(!state.tareas) state.tareas=[];
+  const id=document.getElementById('mTaId').value||uid();
+  const tarea={id,titulo,desc:document.getElementById('mTa-desc').value,proyectoId:document.getElementById('mTa-proyecto').value,prioridad:document.getElementById('mTa-prioridad').value,fecha:document.getElementById('mTa-fecha').value,notas:document.getElementById('mTa-notas').value,done:(state.tareas.find(x=>x.id===id)||{}).done||false};
+  const idx=state.tareas.findIndex(x=>x.id===id);
+  if(idx>=0) state.tareas[idx]=tarea; else state.tareas.push(tarea);
+  guardar('tareas'); cerrarModal('modalTarea'); renderTareas(); showToast('✓ Tarea guardada');
+}
+function eliminarTarea() {
+  const id=document.getElementById('mTaId').value;
+  if(!confirm('¿Eliminar?')) return;
+  state.tareas=(state.tareas||[]).filter(x=>x.id!==id);
+  guardar('tareas'); cerrarModal('modalTarea'); renderTareas(); showToast('Tarea eliminada');
+}
+
+// ─── TRADING ──────────────────────────────────────────
+function renderTrading() {
+  const el=document.getElementById('panel-trading');
+  const ops=state.trading.operaciones||[];
+  const cerradas=ops.filter(o=>o.resultado!=='open');
+  const abiertas=ops.filter(o=>o.resultado==='open');
+  const pnl=cerradas.reduce((s,o)=>s+(o.pnl||0),0);
+  const wins=cerradas.filter(o=>o.resultado==='win').length;
+  const wr=cerradas.length?Math.round(wins/cerradas.length*100):0;
+
+  el.innerHTML=`
+    <div class="grid2" style="margin-bottom:10px;">
+      <div class="stat-w"><div class="stat-w-label">P&L Total</div><div class="stat-w-val ${pnl>=0?'green':'red'}">${pnl>=0?'+':''}€${fmt(Math.abs(pnl))}</div></div>
+      <div class="stat-w"><div class="stat-w-label">Winrate</div><div class="stat-w-val gold">${cerradas.length?wr+'%':'—'}</div><div class="stat-w-sub">${cerradas.length} cerradas</div></div>
+    </div>
+    <div class="stat-w" style="margin-bottom:10px;">
+      <div class="stat-w-label">Capital personal · Quantfury</div>
+      <div class="stat-w-val gold">€${fmt(state.trading.capitalPersonal?.actual||6400)}</div>
+      <button class="btn btn-secondary" style="font-size:10px;margin-top:8px;" onclick="document.getElementById('mCap-cuenta').value='trading';abrirModal('modalCapital')">Actualizar</button>
+    </div>
+    ${abiertas.length?`<div class="section-label">⏳ Abiertas (${abiertas.length})</div>${abiertas.map(o=>renderOpCard(o)).join('')}`:''}
+    <div class="section-label">Historial reciente</div>
+    ${[...cerradas].reverse().slice(0,10).map(o=>renderOpCard(o)).join('')||'<div style="font-size:11px;color:var(--text3);padding:8px 0;">Sin operaciones. Pulsa + para añadir</div>'}`;
+}
+
+function renderOpCard(o) {
+  const pnlColor=o.pnl>0?'var(--green)':o.pnl<0?'var(--red)':o.resultado==='be'?'var(--gold)':'var(--blue)';
+  const pnlText=o.pnl!=null?(o.pnl>=0?'+':'')+'€'+fmt(Math.abs(o.pnl)):o.resultado==='open'?'ABIERTA':'—';
+  return `<div class="op-card ${o.resultado}" onclick="editarOp('${o.id}')">
+    <div class="op-header">
+      <div><span class="op-activo">${o.activo}</span> <span class="badge badge-${o.resultado==='win'?'green':o.resultado==='loss'?'red':o.resultado==='open'?'blue':'gold'}">${o.resultado}</span></div>
+      <div class="op-pnl" style="color:${pnlColor}">${pnlText}</div>
+    </div>
+    <div class="op-details">${o.cuenta||''} · ${o.fecha||''} ${o.rr?'· '+o.rr.toFixed(2)+'R':''}</div>
+  </div>`;
+}
+
+function setDir(d) {
+  opDir=d;
+  document.getElementById('dirLong').style.cssText=d==='long'?'border-color:var(--green);color:var(--green)':'';
+  document.getElementById('dirShort').style.cssText=d==='short'?'border-color:var(--red);color:var(--red)':'';
+}
+function setRes(r) {
+  opRes=r;
+  ['Win','Loss','Be','Open'].forEach(x=>{ const el=document.getElementById('res'+x); if(el) el.style.cssText=''; });
+  const map={win:'Win',loss:'Loss',be:'Be',open:'Open'};
+  const colMap={win:'var(--green)',loss:'var(--red)',be:'var(--gold)',open:'var(--blue)'};
+  const el=document.getElementById('res'+map[r]); if(el) el.style.cssText=`border-color:${colMap[r]};color:${colMap[r]}`;
+}
+function calcRR() {
+  const e=fmtN(document.getElementById('mOp-entrada').value);
+  const sl=fmtN(document.getElementById('mOp-sl').value);
+  const tp=fmtN(document.getElementById('mOp-tp').value);
+  const prev=document.getElementById('rrPreview');
+  if(!e||!sl||!tp){prev.textContent='Introduce datos para calcular R:R';return;}
+  const r=Math.abs(e-sl); const b=Math.abs(tp-e);
+  if(!r){prev.textContent='SL igual a entrada';return;}
+  const rr=(b/r).toFixed(2);
+  prev.textContent=`R:R = ${rr} · Riesgo €${fmt(r)} · Beneficio €${fmt(b)}`;
+  prev.style.color=rr>=2?'var(--green)':rr>=1?'var(--gold)':'var(--red)';
+}
+function abrirModalOp() {
+  document.getElementById('mOpTitulo').textContent='Nueva operación';
+  document.getElementById('mOpId').value='';
+  ['mOp-entrada','mOp-sl','mOp-tp','mOp-pnl','mOp-setup'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mOp-fecha').value=hoyISO();
+  document.getElementById('mOpDel').style.display='none';
+  setDir('long'); setRes('open');
+  abrirModal('modalOp');
+}
+function editarOp(id) {
+  const o=(state.trading.operaciones||[]).find(x=>x.id===id); if(!o) return;
+  document.getElementById('mOpTitulo').textContent='Editar operación';
+  document.getElementById('mOpId').value=id;
+  document.getElementById('mOp-activo').value=o.activo||'TSLA';
+  document.getElementById('mOp-cuenta').value=o.cuenta||'personal';
+  document.getElementById('mOp-entrada').value=o.entrada||'';
+  document.getElementById('mOp-sl').value=o.sl||'';
+  document.getElementById('mOp-tp').value=o.tp||'';
+  document.getElementById('mOp-pnl').value=o.pnl!=null?o.pnl:'';
+  document.getElementById('mOp-setup').value=o.setup||'';
+  document.getElementById('mOp-fecha').value=o.fechaISO||hoyISO();
+  document.getElementById('mOpDel').style.display='block';
+  setDir(o.direccion||'long'); setRes(o.resultado||'open');
+  abrirModal('modalOp');
+}
+function guardarOp() {
+  if(!state.trading.operaciones) state.trading.operaciones=[];
+  const id=document.getElementById('mOpId').value||uid();
+  const e=fmtN(document.getElementById('mOp-entrada').value);
+  const sl=fmtN(document.getElementById('mOp-sl').value);
+  const tp=fmtN(document.getElementById('mOp-tp').value);
+  let rr=null; if(e&&sl&&tp){ const r=Math.abs(e-sl); if(r) rr=Math.abs(tp-e)/r; }
+  let pnl=parseFloat(document.getElementById('mOp-pnl').value);
+  if(!isNaN(pnl)&&opRes==='loss'&&pnl>0) pnl=-pnl;
+  const op={id,activo:document.getElementById('mOp-activo').value,cuenta:document.getElementById('mOp-cuenta').value,direccion:opDir,entrada:e||null,sl:sl||null,tp:tp||null,rr,resultado:opRes,pnl:!isNaN(pnl)?pnl:null,setup:document.getElementById('mOp-setup').value,fechaISO:document.getElementById('mOp-fecha').value,fecha:new Date(document.getElementById('mOp-fecha').value+'T00:00:00').toLocaleDateString('es-ES')};
+  const idx=state.trading.operaciones.findIndex(x=>x.id===id);
+  if(idx>=0) state.trading.operaciones[idx]=op; else state.trading.operaciones.push(op);
+  guardar('trading'); cerrarModal('modalOp'); renderTrading(); showToast('✓ Operación guardada');
+}
+function eliminarOp() {
+  const id=document.getElementById('mOpId').value;
+  if(!confirm('¿Eliminar?')) return;
+  state.trading.operaciones=(state.trading.operaciones||[]).filter(x=>x.id!==id);
+  guardar('trading'); cerrarModal('modalOp'); renderTrading(); showToast('Operación eliminada');
+}
+
+// ─── CAPITAL ──────────────────────────────────────────
+function renderCapital() {
+  const el=document.getElementById('panel-capital');
+  const c=state.capital.cuentas||{};
+  const total=Object.entries(c).filter(([k])=>k!=='impuestos').reduce((s,[,v])=>s+v,0);
+  const colores={trading:'var(--gold)',etfs:'var(--green)',cripto:'var(--gold)',revolut:'var(--blue)',pronosticos:'var(--orange)',impuestos:'var(--red)',carpinteria:'var(--purple)'};
+
+  el.innerHTML=`
+    <div class="hero-patrimonio" style="margin-bottom:10px;">
+      <div class="hp-label">Patrimonio neto</div>
+      <div class="hp-amount">€${fmt(total)}</div>
+    </div>
+    <div class="section-label">Cuentas</div>
+    ${Object.entries(c).map(([k,v])=>`
+      <div class="item-row" onclick="document.getElementById('mCap-cuenta').value='${k}';document.getElementById('mCap-saldo').value='${v}';abrirModal('modalCapital')" style="cursor:pointer;">
+        <div><div class="item-label">${k==='pronosticos'?'Pronósticos':k.charAt(0).toUpperCase()+k.slice(1)}</div></div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="item-val" style="color:${colores[k]||'var(--text)'}">€${fmt(v)}</div>
+          <div style="font-size:10px;color:var(--text3)">✎</div>
+        </div>
+      </div>`).join('')}
+    <div class="section-label" style="margin-top:16px;">Calculadora de reparto</div>
+    <div class="card">
+      <div class="field"><label>Ingreso bruto (con IVA si aplica) €</label><input type="number" id="capIngresoInput" placeholder="ej. 10000" oninput="calcReparto()"></div>
+      <div class="field"><label>Fuente</label>
+        <select id="capFuenteInput" onchange="calcReparto()">
+          <option value="negocio">Negocio (con IVA)</option>
+          <option value="trading">Trading (sin IVA)</option>
+          <option value="otro">Otro (sin IVA)</option>
+        </select>
+      </div>
+      <div id="capRepartoResult" style="font-size:11px;color:var(--text3);margin-top:4px;">Introduce el importe para calcular</div>
+    </div>`;
+}
+
+function calcReparto() {
+  const ing=fmtN(document.getElementById('capIngresoInput')?.value);
+  const fuente=document.getElementById('capFuenteInput')?.value;
+  const el=document.getElementById('capRepartoResult');
+  if(!ing||!el) return;
+  const cfg=state.capital.config||{ivaPct:21,irpfPct:25,gastos:32,colchon:8,trading:24,etfs:24,pronosticos:3,carpinteria:8};
+  const tieneIVA=fuente==='negocio';
+  const base=tieneIVA?ing/(1+cfg.ivaPct/100):ing;
+  const iva=tieneIVA?ing-base:0;
+  const irpf=base*cfg.irpfPct/100;
+  const neto=ing-iva-irpf;
+  const items=[
+    {l:'IVA → impuestos',v:iva,show:iva>0,c:'var(--red)'},
+    {l:'IRPF → impuestos',v:irpf,c:'var(--red)'},
+    {l:'Gastos',v:neto*cfg.gastos/100,c:'var(--text3)'},
+    {l:'Colchón Revolut',v:neto*cfg.colchon/100,c:'var(--blue)'},
+    {l:'Trading',v:neto*cfg.trading/100,c:'var(--gold)'},
+    {l:'ETFs',v:neto*cfg.etfs/100,c:'var(--green)'},
+    {l:'Pronósticos',v:neto*cfg.pronosticos/100,c:'var(--orange)'},
+    {l:'Reserva carpintería',v:neto*cfg.carpinteria/100,c:'var(--purple)'},
+  ].filter(i=>i.v>0.01&&i.show!==false);
+  el.innerHTML=`<div style="margin-bottom:6px;color:var(--text2);">Neto disponible: <strong>€${fmt(neto)}</strong></div>`+items.map(i=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);"><span>${i.l}</span><span style="color:${i.c}">€${fmt(i.v)}</span></div>`).join('');
+}
+
+function guardarCapital() {
+  const k=document.getElementById('mCap-cuenta').value;
+  const v=fmtN(document.getElementById('mCap-saldo').value);
+  const nota=document.getElementById('mCap-nota').value;
+  const anterior=state.capital.cuentas[k]||0;
+  state.capital.cuentas[k]=v;
+  if(!state.capital.historial) state.capital.historial=[];
+  state.capital.historial.push({fecha:hoyISO(),cuenta:k,anterior,nuevo:v,cambio:v-anterior,nota});
+  guardar('capital'); cerrarModal('modalCapital'); renderCapital(); showToast('✓ Capital actualizado');
+}
+
+// ─── INGRESOS ─────────────────────────────────────────
+function renderIngresos() {
+  const el=document.getElementById('panel-ingresos');
+  const mk=mesKey();
+  const regs=(state.ingresos||{})[mk]||[];
+  const pct=regs.filter(r=>r.tipo==='pct').reduce((s,r)=>s+r.importe,0);
+  const hrs=regs.filter(r=>r.tipo==='hrs').reduce((s,r)=>s+r.importe,0);
+  const pzs=regs.filter(r=>r.tipo==='pzs').reduce((s,r)=>s+r.importe,0);
+  const total=pct+hrs+pzs;
+  const MESES_ES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="font-family:'Fraunces',serif;font-size:18px;font-weight:200;">${MESES_ES[new Date().getMonth()]}</div>
+      <div style="font-family:'Fraunces',serif;font-size:24px;color:var(--gold);">€${fmt(total)}</div>
+    </div>
+    <div class="grid3" style="margin-bottom:12px;">
+      <div class="stat-w"><div class="stat-w-label">% Benef.</div><div class="stat-w-val gold" style="font-size:18px;">€${fmt(pct)}</div></div>
+      <div class="stat-w"><div class="stat-w-label">Horas</div><div class="stat-w-val green" style="font-size:18px;">€${fmt(hrs)}</div></div>
+      <div class="stat-w"><div class="stat-w-label">Piezas</div><div class="stat-w-val" style="font-size:18px;color:var(--orange);">€${fmt(pzs)}</div></div>
+    </div>
+
+    <!-- TIMER -->
+    <div class="ing-timer" style="margin-bottom:12px;">
+      <div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;">⏱ Fichar horas</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="timer-display ${timerRunning?'running':''}" id="timerClock">00:00:00</div>
+        <div style="display:flex;gap:6px;flex:1;">
+          <button class="btn ${timerRunning?'btn-danger':'btn-primary'}" style="flex:1;font-size:10px;" onclick="toggleTimer()">${timerRunning?'Pausar':'Iniciar'}</button>
+          ${timerStart?`<button class="btn btn-secondary" style="font-size:10px;" onclick="guardarTimer()">Guardar</button>`:''}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <span style="font-size:9px;color:var(--text3);">€/hora:</span>
+        <input type="number" id="precioHora" value="25" step="0.5" style="width:70px;background:var(--s3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:'Geist Mono',monospace;font-size:12px;outline:none;">
+        <span style="font-size:10px;color:var(--text3);" id="timerImporte">= €0,00</span>
+      </div>
+    </div>
+
+    <div class="section-label">Registros del mes</div>
+    ${regs.length?[...regs].reverse().map((r,i)=>`
+      <div class="op-card" style="border-left-color:${r.tipo==='pct'?'var(--gold)':r.tipo==='hrs'?'var(--green)':'var(--orange)'}" onclick="editarIngreso('${r.id}')">
+        <div class="op-header">
+          <div><span style="font-size:9px;color:var(--text3);text-transform:uppercase;">${r.tipo==='pct'?'% Beneficio':r.tipo==='hrs'?'Horas':'Pieza'}</span><div style="font-size:12px;margin-top:2px;">${r.desc||'Sin descripción'}</div></div>
+          <div class="item-val green">€${fmt(r.importe)}</div>
+        </div>
+        <div class="op-details">${r.fecha||''}</div>
+      </div>`).join(''):'<div style="font-size:11px;color:var(--text3);padding:8px 0;">Sin registros este mes. Pulsa + para añadir</div>'}
+
+    <div class="section-label" style="margin-top:14px;">Factura estimada</div>
+    <div class="card">
+      <div class="item-row"><div class="item-label">Base imponible</div><div class="item-val">€${fmt(total)}</div></div>
+      <div class="item-row"><div class="item-label">IVA 21%</div><div class="item-val">€${fmt(total*.21)}</div></div>
+      <div class="item-row"><div class="item-label" style="font-weight:500;">Total factura</div><div class="item-val gold">€${fmt(total*1.21)}</div></div>
+    </div>`;
+}
+
+function toggleTimer() {
+  if(!timerRunning){
+    timerStart=Date.now()-timerPausado;
+    timerRunning=true;
+    timerInterval=setInterval(updateTimer,1000);
+  } else {
+    clearInterval(timerInterval);
+    timerPausado=Date.now()-timerStart;
+    timerRunning=false;
+  }
+  renderIngresos();
+}
+function updateTimer() {
+  if(!timerStart) return;
+  const el=document.getElem=document.getElementById('timerClock');
+  if(!el) return;
+  const elapsed=Date.now()-timerStart;
+  const h=Math.floor(elapsed/3600000);
+  const m=Math.floor((elapsed%3600000)/60000);
+  const s=Math.floor((elapsed%60000)/1000);
+  el.textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const precio=fmtN(document.getElementById('precioHora')?.value);
+  const imp=document.getElementById('timerImporte');
+  if(imp) imp.textContent=`= €${fmt((elapsed/3600000)*precio)}`;
+}
+function guardarTimer() {
+  clearInterval(timerInterval);
+  timerRunning=false;
+  const elapsed=timerPausado||(Date.now()-timerStart);
+  const horas=elapsed/3600000;
+  const precio=fmtN(document.getElementById('precioHora')?.value||25);
+  const importe=horas*precio;
+  addIngreso({tipo:'hrs',importe,desc:`${horas.toFixed(2)}h (timer)`,fecha:new Date().toLocaleDateString('es-ES')});
+  timerStart=null; timerPausado=0;
+  showToast(`✓ Horas guardadas · €${fmt(importe)}`);
+  renderIngresos();
+}
+
+function abrirModalIngreso() {
+  document.getElementById('mIngTitulo').textContent='Nuevo registro';
+  document.getElementById('mIngId').value='';
+  document.getElementById('mIng-tipo').value='pct';
+  document.getElementById('mIng-importe').value='';
+  document.getElementById('mIng-desc').value='';
+  document.getElementById('mIng-fecha').value=hoyISO();
+  document.getElementById('mIngDel').style.display='none';
+  abrirModal('modalIngreso');
+}
+function editarIngreso(id) {
+  const mk=mesKey(); const r=((state.ingresos||{})[mk]||[]).find(x=>x.id===id); if(!r) return;
+  document.getElementById('mIngTitulo').textContent='Editar registro';
+  document.getElementById('mIngId').value=id;
+  document.getElementById('mIng-tipo').value=r.tipo;
+  document.getElementById('mIng-importe').value=r.importe;
+  document.getElementById('mIng-desc').value=r.desc||'';
+  document.getElementById('mIng-fecha').value=r.fechaISO||hoyISO();
+  document.getElementById('mIngDel').style.display='block';
+  abrirModal('modalIngreso');
+}
+function addIngreso(datos) {
+  const mk=mesKey();
+  if(!state.ingresos) state.ingresos={};
+  if(!state.ingresos[mk]) state.ingresos[mk]=[];
+  state.ingresos[mk].push({id:uid(),...datos});
+  guardar('ingresos');
+}
+function guardarIngreso() {
+  const importe=fmtN(document.getElementById('mIng-importe').value);
+  if(!importe){alert('Importe obligatorio');return;}
+  const mk=mesKey();
+  if(!state.ingresos) state.ingresos={};
+  if(!state.ingresos[mk]) state.ingresos[mk]=[];
+  const id=document.getElementById('mIngId').value||uid();
+  const reg={id,tipo:document.getElementById('mIng-tipo').value,importe,desc:document.getElementById('mIng-desc').value,fechaISO:document.getElementById('mIng-fecha').value,fecha:new Date(document.getElementById('mIng-fecha').value+'T00:00:00').toLocaleDateString('es-ES')};
+  const idx=state.ingresos[mk].findIndex(x=>x.id===id);
+  if(idx>=0) state.ingresos[mk][idx]=reg; else state.ingresos[mk].push(reg);
+  guardar('ingresos'); cerrarModal('modalIngreso'); renderIngresos(); showToast('✓ Registro guardado');
+}
+function eliminarIngreso() {
+  const id=document.getElementById('mIngId').value; const mk=mesKey();
+  if(!confirm('¿Eliminar?')) return;
+  state.ingresos[mk]=(state.ingresos[mk]||[]).filter(x=>x.id!==id);
+  guardar('ingresos'); cerrarModal('modalIngreso'); renderIngresos(); showToast('Registro eliminado');
+}
+
+// ─── CAMPER & METACRILATO ─────────────────────────────
+function renderCamper() {
+  const el=document.getElementById('panel-camper');
+  const proyectos=state.proyectos_camp||[];
+  const activos=proyectos.filter(p=>p.estado==='fabricacion').length;
+  const facturado=proyectos.filter(p=>['cobrado','entregado'].includes(p.estado)).reduce((s,p)=>s+(p.presupuesto||0),0);
+  const beneficio=proyectos.reduce((s,p)=>{
+    const coste=(p.materiales||0)+(p.horas||0)*(p.preciohora||25)+(p.otros||0);
+    return s+(p.estado==='cobrado'?(p.presupuesto||0)-coste:0);
+  },0);
+
+  el.innerHTML=`
+    <div class="grid3" style="margin-bottom:10px;">
+      <div class="stat-w"><div class="stat-w-label">Activos</div><div class="stat-w-val gold">${activos}</div></div>
+      <div class="stat-w"><div class="stat-w-label">Facturado</div><div class="stat-w-val green" style="font-size:18px;">€${fmt(facturado)}</div></div>
+      <div class="stat-w"><div class="stat-w-label">Beneficio</div><div class="stat-w-val ${beneficio>=0?'green':'red'}" style="font-size:18px;">€${fmt(beneficio)}</div></div>
+    </div>
+    <div class="section-label">Proyectos</div>
+    ${proyectos.length?[...proyectos].reverse().map(p=>{
+      const coste=(p.materiales||0)+(p.horas||0)*(p.preciohora||25)+(p.otros||0);
+      const margen=p.presupuesto?Math.round(((p.presupuesto-coste)/p.presupuesto)*100):0;
+      const estadoClass={presupuesto:'estado-presupuesto',fabricacion:'estado-fabricacion',entregado:'estado-entregado',cobrado:'estado-cobrado'};
+      const estadoLabel={presupuesto:'📋 Presupuesto',fabricacion:'🔧 Fabricación',entregado:'✓ Entregado',cobrado:'💰 Cobrado'};
+      return `<div class="proj-card" onclick="editarProyecto('${p.id}')">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+          <div style="font-size:13px;font-weight:400;">${p.nombre}</div>
+          <span class="proj-estado ${estadoClass[p.estado]||''}">${estadoLabel[p.estado]||p.estado}</span>
+        </div>
+        ${p.desc?`<div style="font-size:10px;color:var(--text3);margin-bottom:6px;">${p.desc}</div>`:''}
+        <div class="grid3">
+          <div><div style="font-size:8px;color:var(--text3);">Presupuesto</div><div style="font-size:12px;color:var(--gold);">€${fmt(p.presupuesto||0)}</div></div>
+          <div><div style="font-size:8px;color:var(--text3);">Coste</div><div style="font-size:12px;color:var(--red);">€${fmt(coste)}</div></div>
+          <div><div style="font-size:8px;color:var(--text3);">Margen</div><div style="font-size:12px;color:${margen>=0?'var(--green)':'var(--red)'};">${margen}%</div></div>
+        </div>
+      </div>`;
+    }).join(''):'<div style="font-size:11px;color:var(--text3);padding:8px 0;">Sin proyectos. Pulsa + para añadir</div>'}`;
+}
+
+function abrirModalProyecto() {
+  document.getElementById('mPrTitulo').textContent='Nuevo proyecto';
+  document.getElementById('mPrId').value='';
+  ['mPr-nombre','mPr-desc','mPr-presupuesto','mPr-materiales','mPr-horas','mPr-otros'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mPr-preciohora').value='25';
+  document.getElementById('mPr-estado').value='presupuesto';
+  document.getElementById('mPr-fecha').value='';
+  document.getElementById('mPrDel').style.display='none';
+  document.getElementById('mPrResumen').style.display='none';
+  abrirModal('modalProyecto');
+}
+function editarProyecto(id) {
+  const p=(state.proyectos_camp||[]).find(x=>x.id===id); if(!p) return;
+  document.getElementById('mPrTitulo').textContent='Editar proyecto';
+  document.getElementById('mPrId').value=id;
+  document.getElementById('mPr-nombre').value=p.nombre||'';
+  document.getElementById('mPr-desc').value=p.desc||'';
+  document.getElementById('mPr-presupuesto').value=p.presupuesto||'';
+  document.getElementById('mPr-materiales').value=p.materiales||'';
+  document.getElementById('mPr-horas').value=p.horas||'';
+  document.getElementById('mPr-preciohora').value=p.preciohora||25;
+  document.getElementById('mPr-otros').value=p.otros||'';
+  document.getElementById('mPr-estado').value=p.estado||'presupuesto';
+  document.getElementById('mPr-fecha').value=p.fecha||'';
+  document.getElementById('mPrDel').style.display='block';
+  const coste=(p.materiales||0)+(p.horas||0)*(p.preciohora||25)+(p.otros||0);
+  const margen=p.presupuesto?((p.presupuesto-coste)/p.presupuesto*100).toFixed(1):0;
+  const resumen=document.getElementById('mPrResumen');
+  resumen.style.display='block';
+  resumen.innerHTML=`Coste total: €${fmt(coste)} · Beneficio: €${fmt((p.presupuesto||0)-coste)} · Margen: ${margen}%`;
+  abrirModal('modalProyecto');
+}
+function guardarProyecto() {
+  const nombre=document.getElementById('mPr-nombre').value.trim();
+  if(!nombre){alert('Nombre obligatorio');return;}
+  if(!state.proyectos_camp) state.proyectos_camp=[];
+  const id=document.getElementById('mPrId').value||uid();
+  const p={id,nombre,desc:document.getElementById('mPr-desc').value,presupuesto:fmtN(document.getElementById('mPr-presupuesto').value),materiales:fmtN(document.getElementById('mPr-materiales').value),horas:fmtN(document.getElementById('mPr-horas').value),preciohora:fmtN(document.getElementById('mPr-preciohora').value)||25,otros:fmtN(document.getElementById('mPr-otros').value),estado:document.getElementById('mPr-estado').value,fecha:document.getElementById('mPr-fecha').value};
+  const idx=state.proyectos_camp.findIndex(x=>x.id===id);
+  if(idx>=0) state.proyectos_camp[idx]=p; else state.proyectos_camp.push(p);
+  guardar('proyectos_camp'); cerrarModal('modalProyecto'); renderCamper(); showToast('✓ Proyecto guardado');
+}
+function eliminarProyecto() {
+  const id=document.getElementById('mPrId').value;
+  if(!confirm('¿Eliminar?')) return;
+  state.proyectos_camp=(state.proyectos_camp||[]).filter(x=>x.id!==id);
+  guardar('proyectos_camp'); cerrarModal('modalProyecto'); renderCamper(); showToast('Proyecto eliminado');
+}
+
+// ─── INIT ─────────────────────────────────────────────
+// El timer se inicializa pero la app espera al auth
+</script>
+</body>
+</html>
