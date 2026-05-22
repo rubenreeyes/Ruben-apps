@@ -608,12 +608,7 @@ body{background:var(--bg);color:var(--text);font-family:'Geist Mono',monospace;f
 
 <div class="modal-overlay" id="mCapital"><div class="modal">
   <div class="modal-handle"></div><h3>Actualizar cuenta</h3>
-  <div class="field"><label>Cuenta</label><select id="mCap-cuenta">
-    <option value="trading">Trading · Quantfury</option><option value="etfs">ETFs · Trade Republic</option>
-    <option value="cripto">Cripto</option><option value="revolut">Revolut · Colchón</option>
-    <option value="pronosticos">Pronósticos</option><option value="impuestos">Cuenta impuestos</option>
-    <option value="carpinteria">Reserva carpintería</option>
-  </select></div>
+  <div class="field"><label>Cuenta</label><select id="mCap-cuenta" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:9px 11px;color:var(--text);font-family:'Geist Mono',monospace;font-size:12px;outline:none;"></select></div>
   <div class="field"><label>Saldo €</label><input type="number" id="mCap-saldo" step="0.01"></div>
   <div class="field"><label>Nota</label><input type="text" id="mCap-nota"></div>
   <button class="btn btn-primary btn-full" onclick="guardarCapital()">Guardar</button>
@@ -779,7 +774,7 @@ function renderDashboard() {
   const ops = state.trading.operaciones||[];
   const pnlTrading = ops.filter(o=>o.resultado!=='open').reduce((s,o)=>s+(o.pnl||0),0);
   const pnlPron = (state.pronosticos.apuestas||[]).reduce((s,a)=>s+(a.pnl||0),0);
-  const ingCamper = (state.proyectos_camp||[]).filter(p=>p.estado==='cobrado').reduce((s,p)=>s+(p.presupuesto||0),0);
+  const ingCamper = getCamperClientes().flatMap(c=>c.proyectos||[]).filter(p=>p.estado==='cobrado').reduce((s,p)=>s+(p.presupuesto||0),0);
   const ingTotal = ingKifar + Math.max(pnlTrading,0) + Math.max(pnlPron,0) + ingCamper;
   const tareasUrg = (state.tareas||[]).filter(t=>!t.done&&t.prioridad==='urgente');
   const tareasVenc = (state.tareas||[]).filter(t=>!t.done&&t.fecha&&diasRest(t.fecha)<0);
@@ -1690,7 +1685,7 @@ function renderCapital() {
           <button class="btn btn-secondary" style="font-size:9px;padding:4px 10px;" onclick="abrirModalNuevaCuenta()">+ Nueva cuenta</button>
         </div>
         ${Object.entries(c).map(([k,v])=>`
-          <div class="item-row" onclick="document.getElementById('mCap-cuenta').value='${k}';document.getElementById('mCap-saldo').value='${v}';document.getElementById('mCap-nota').value='';abrirModal('mCapital')" style="cursor:pointer;">
+          <div class="item-row" onclick="abrirModalCapital('${k}','${v}')" style="cursor:pointer;">
             <div style="display:flex;align-items:center;gap:8px;">
               <div style="width:8px;height:8px;border-radius:50%;background:${colores[k]||'var(--text3)'}"></div>
               <div class="item-label">${(state.capital.cuentasNombres||{})[k]||cuentaNombre(k)}</div>
@@ -1776,6 +1771,15 @@ function calcReparto() {
   el.innerHTML=`<div style="margin-bottom:6px;color:var(--text2);">Neto: <strong style="color:var(--text);">€${fmt(neto)}</strong></div>`+items.map(i=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);"><span>${i.l}</span><span style="color:${i.c};">€${fmt(i.v)}</span></div>`).join('');
 }
 
+function abrirModalCapital(clave, valor) {
+  const sel=document.getElementById('mCap-cuenta'); if(!sel) return;
+  const c=state.capital.cuentas||{};
+  sel.innerHTML=Object.keys(c).map(k=>`<option value="${k}">${cuentaNombre(k)}</option>`).join('');
+  if(clave) sel.value=clave;
+  document.getElementById('mCap-saldo').value=valor||'';
+  document.getElementById('mCap-nota').value='';
+  abrirModal('mCapital');
+}
 function guardarCapital() { const k=document.getElementById('mCap-cuenta').value,v=fmtN(document.getElementById('mCap-saldo').value),nota=document.getElementById('mCap-nota').value; const ant=state.capital.cuentas[k]||0; state.capital.cuentas[k]=v; if(!state.capital.historial) state.capital.historial=[]; state.capital.historial.push({fecha:hoyISO(),cuenta:k,anterior:ant,nuevo:v,cambio:v-ant,nota}); save('capital'); cerrarModal('mCapital'); renderCapital(); showToast('✓ Capital actualizado'); }
 
 // ─── KIFAR ────────────────────────────────────────────
@@ -2216,7 +2220,7 @@ function renderIngTotal() {
     const trading=Math.max(opsM.reduce((s,o)=>s+(o.pnl||0),0),0);
     const pronM=(state.pronosticos.apuestas||[]).filter(a=>{ if(!a.fecha) return false; const ad=new Date(a.fecha+'T00:00:00'); return ad.getMonth()===d.getMonth()&&ad.getFullYear()===d.getFullYear()&&a.resultado!=='pendiente'; });
     const pron=Math.max(pronM.reduce((s,a)=>s+(a.pnl||0),0),0);
-    const camper=(state.proyectos_camp||[]).filter(p=>p.estado==='cobrado'&&p.fecha&&new Date(p.fecha+'T00:00:00').getMonth()===d.getMonth()&&new Date(p.fecha+'T00:00:00').getFullYear()===d.getFullYear()).reduce((s,p)=>s+(p.presupuesto||0),0);
+    const camper=getCamperClientes().flatMap(c=>c.proyectos||[]).filter(p=>p.estado==='cobrado'&&p.fecha&&new Date(p.fecha+'T00:00:00').getMonth()===d.getMonth()&&new Date(p.fecha+'T00:00:00').getFullYear()===d.getFullYear()).reduce((s,p)=>s+(p.presupuesto||0),0);
     const total=kifar+trading+pron+camper;
     totalAnual+=total;
     datos.push({mes:MESES_S[d.getMonth()],kifar,trading,pron,camper,total});
@@ -2363,16 +2367,21 @@ function exportarExcel() {
 
     // ── CAMPER ──
     if(document.getElementById('expCamper')?.checked) {
-      const projs = esMes
-        ? (state.proyectos_camp||[]).filter(p=>p.fecha&&new Date(p.fecha+'T00:00:00').getMonth()===new Date().getMonth()&&new Date(p.fecha+'T00:00:00').getFullYear()===new Date().getFullYear())
-        : (state.proyectos_camp||[]);
+      const clientes = getCamperClientes();
+      const rows = [];
+      clientes.forEach(cli=>{
+        const projs = esMes
+          ? (cli.proyectos||[]).filter(p=>p.fecha&&new Date(p.fecha+'T00:00:00').getMonth()===new Date().getMonth()&&new Date(p.fecha+'T00:00:00').getFullYear()===new Date().getFullYear())
+          : (cli.proyectos||[]);
+        projs.forEach(p=>{const c=(p.materiales||0)+(p.horas||0)*(p.preciohora||25)+(p.otros||0);const b=(p.presupuesto||0)-c;const m=p.presupuesto?+((b/p.presupuesto)*100).toFixed(1):0;rows.push([cli.nombre,p.nombre||'',p.desc||'',p.estado||'',p.presupuesto||0,p.materiales||0,p.horas||0,p.preciohora||25,p.otros||0,c,b,m,p.fecha||'']);});
+      });
       const ws = XLSX.utils.aoa_to_sheet([
         ['PROYECTOS CAMPER & METACRILATO'],[''],
-        ['Cliente','Descripción','Estado','Presupuesto €','Materiales €','Horas','€/hora','Otros €','Coste Total €','Beneficio €','Margen %','Fecha'],
-        ...projs.map(p=>{const c=(p.materiales||0)+(p.horas||0)*(p.preciohora||25)+(p.otros||0);const b=(p.presupuesto||0)-c;const m=p.presupuesto?+((b/p.presupuesto)*100).toFixed(1):0;return[p.nombre||'',p.desc||'',p.estado||'',p.presupuesto||0,p.materiales||0,p.horas||0,p.preciohora||25,p.otros||0,c,b,m,p.fecha||''];})
+        ['Cliente','Proyecto','Descripción','Estado','Presupuesto €','Materiales €','Horas','€/hora','Otros €','Coste Total €','Beneficio €','Margen %','Fecha'],
+        ...rows
       ]);
-      ws['!cols']=[{wch:22},{wch:28},{wch:14},{wch:14},{wch:14},{wch:7},{wch:8},{wch:10},{wch:14},{wch:14},{wch:10},{wch:14}];
-      ws['!autofilter']={ref:'A3:L3'};
+      ws['!cols']=[{wch:18},{wch:20},{wch:24},{wch:14},{wch:14},{wch:14},{wch:7},{wch:8},{wch:10},{wch:14},{wch:14},{wch:10},{wch:12}];
+      ws['!autofilter']={ref:'A3:M3'};
       XLSX.utils.book_append_sheet(wb,ws,'Camper');
     }
 
