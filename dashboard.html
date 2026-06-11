@@ -87,6 +87,11 @@ onAuthStateChanged(auth, async (user) => {
       } catch(e) {}
     }
     document.getElementById('loadingBar').style.display = 'none';
+    // Migración: eliminar cuentas obsoletas
+    if(state.capital?.cuentas) {
+      ['impuestos','carpinteria'].forEach(k => { if(k in state.capital.cuentas) { delete state.capital.cuentas[k]; } });
+      save('capital');
+    }
     // Sincronizar config persistida con campos top-level
     if(state.config?.objetivoMes) state.objetivoMes = state.config.objetivoMes;
     if(state.config?.objetivos_vals) state.objetivos_vals = state.config.objetivos_vals;
