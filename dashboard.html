@@ -100,6 +100,15 @@ onAuthStateChanged(auth, async (user) => {
       const u = onSnapshot(doc(db, 'users', userId, 'modulos', m), (snap) => {
         if (snap.exists() && !snap.metadata.hasPendingWrites) {
           state[m] = JSON.parse(snap.data().data);
+          // Re-aplicar migración de cuentas obsoletas si llegan del servidor
+          if (m === 'capital' && state.capital?.cuentas) {
+            const cuentasObsoletas = ['impuestos','carpinteria'];
+            const hayCuentasObsoletas = cuentasObsoletas.some(k => k in state.capital.cuentas);
+            if (hayCuentasObsoletas) {
+              cuentasObsoletas.forEach(k => { delete state.capital.cuentas[k]; });
+              save('capital');
+            }
+          }
           if (tabActiva) renderTab(tabActiva, true);
         }
       });
@@ -862,7 +871,7 @@ body{background:var(--bg);color:var(--text);font-family:'Geist Mono',monospace;f
   <div class="config-section">
     <div class="config-label">Precio hora Kifar por defecto</div>
     <div style="display:flex;gap:8px;">
-      <input type="number" id="cfg-preciohra" value="${15}" placeholder="15" style="flex:1;background:var(--s3);border:1px solid var(--border);border-radius:7px;padding:9px 11px;color:var(--text);font-family:'Geist Mono',monospace;font-size:12px;outline:none;">
+      <input type="number" id="cfg-preciohra" value="15" placeholder="15" style="flex:1;background:var(--s3);border:1px solid var(--border);border-radius:7px;padding:9px 11px;color:var(--text);font-family:'Geist Mono',monospace;font-size:12px;outline:none;">
       <button class="btn btn-primary" onclick="const v=document.getElementById('cfg-preciohra').value;if(v){localStorage.setItem('precioHoraDefault',v);showToast('✓ Guardado');}">Guardar</button>
     </div>
   </div>
@@ -1336,8 +1345,7 @@ function moverEvento(id, fechaKeyOrigen, newStart, newEnd, fechaKeyDestino) {
   state.agenda[destino].push(ev);
   state.agenda[destino].sort(function(a,b){ return a.inicio.localeCompare(b.inicio); });
   save('agenda');
-  if(tabActiva === 'hoy') renderHoy();
-  else if(tabActiva === 'dashboard') renderDashboard();
+  if(tabActiva === 'dashboard') renderDashboard();
   else if(tabActiva === 'calendario') renderCalendario();
   var mismo = fechaKeyOrigen === destino;
   showToast('✓ Evento movido' + (mismo ? ' a ' + newStart : ' · ' + destino));
@@ -1604,7 +1612,7 @@ function confirmarPagoTrabajo() {
   if(!state.capital.cuentas) state.capital.cuentas = {};
   state.capital.cuentas[_pagTCuenta] = (state.capital.cuentas[_pagTCuenta]||0) - importe;
   if(!state.capital.historial) state.capital.historial = [];
-  state.capital.historial.push({ id:uid(), tipo:'trabajador', cuenta:_pagTCuenta, importe:-importe, concepto:`${t.nombre}: ${j.descripcion}`, fechaISO:hoyISO() });
+  state.capital.historial.push({ id:uid(), tipo:'trabajador', cuenta:_pagTCuenta, importe:-importe, concepto:`${t.nombre}: ${j.descripcion}`, fecha:hoyISO(), fechaISO:hoyISO() });
   save('trabajadores'); save('capital');
   cerrarModal('mPagoTrabajo');
   if(tabActiva==='trabajadores') renderTrabajadores();
@@ -2331,7 +2339,7 @@ function confirmarEliminarGastoDesdeCard(id) {
       devuelto += p.importe;
     });
     if(!state.capital.historial) state.capital.historial = [];
-    state.capital.historial.push({ id:uid(), tipo:'reverso_gasto', cuenta:g.pagos[0].cuenta, importe:devuelto, concepto:`Reverso: ${g.concepto}`, fechaISO:hoyISO() });
+    state.capital.historial.push({ id:uid(), tipo:'reverso_gasto', cuenta:g.pagos[0].cuenta, importe:devuelto, concepto:`Reverso: ${g.concepto}`, fecha:hoyISO(), fechaISO:hoyISO() });
     save('capital');
   }
   state.gastos = (state.gastos||[]).filter(x=>x.id!==id);
@@ -2881,7 +2889,7 @@ const IA_TOOLS = [
     input_schema: { type:"object", properties:{
       estado:{type:"string", enum:["pendientes","completadas","todas"], description:"def pendientes"},
       proyecto:{type:"string", description:"uni, trading, klova, camper, kifar, ia, personal"},
-      prioridad:{type:"string", enum:["urgente","alta","normal","baja"]}
+      prioridad:{type:"string", enum:["urgente","importante","largo","normal"]}
     }, required:[] } },
   { name: "consultar_agenda",
     description: "Eventos del calendario en un rango de fechas. Sin parámetros, devuelve los próximos 7 días.",
@@ -3480,7 +3488,7 @@ async function ejecutarTool(name, input) {
             state.capital.cuentas[p.cuenta] = (state.capital.cuentas[p.cuenta]||0) + p.importe;
             devuelto += p.importe;
           });
-          state.capital.historial.push({ id:uid(), tipo:'reverso_gasto', cuenta:g.pagos[0].cuenta, importe:devuelto, concepto:`Reverso: ${g.concepto}`, fechaISO:hoy });
+          state.capital.historial.push({ id:uid(), tipo:'reverso_gasto', cuenta:g.pagos[0].cuenta, importe:devuelto, concepto:`Reverso: ${g.concepto}`, fecha:hoy, fechaISO:hoy });
           save('capital');
         }
         state.gastos = gastos.filter(x => x.id !== g.id);
@@ -3535,7 +3543,7 @@ async function ejecutarTool(name, input) {
         if(op.pnl && op.cuenta === 'propia' && state.capital?.cuentas?.trading != null) {
           state.capital.cuentas.trading = (state.capital.cuentas.trading||0) - op.pnl;
           if(!state.capital.historial) state.capital.historial = [];
-          state.capital.historial.push({ id:uid(), tipo:'reverso_trading', cuenta:'trading', importe:-op.pnl, concepto:`Reverso op ${op.activo}`, fechaISO:hoy });
+          state.capital.historial.push({ id:uid(), tipo:'reverso_trading', cuenta:'trading', importe:-op.pnl, concepto:`Reverso op ${op.activo}`, fecha:hoy, fechaISO:hoy });
           save('capital');
           devuelto = ` (restado ${op.pnl.toFixed(2)}€ del capital trading)`;
         }
@@ -3621,7 +3629,7 @@ async function ejecutarTool(name, input) {
         if(!state.capital.cuentas) state.capital.cuentas = {};
         state.capital.cuentas[cuenta] = (state.capital.cuentas[cuenta]||0) - j.importe;
         if(!state.capital.historial) state.capital.historial = [];
-        state.capital.historial.push({ id:uid(), tipo:'trabajador', cuenta, importe:-j.importe, concepto:`${t.nombre}: ${j.descripcion}`, fechaISO:hoy });
+        state.capital.historial.push({ id:uid(), tipo:'trabajador', cuenta, importe:-j.importe, concepto:`${t.nombre}: ${j.descripcion}`, fecha:hoy, fechaISO:hoy });
         save('trabajadores'); save('capital');
         if(tabActiva==='trabajadores') renderTab('trabajadores', true);
         if(tabActiva==='capital') renderTab('capital', true);
@@ -3722,7 +3730,7 @@ async function ejecutarTool(name, input) {
         if(!state.capital.cuentas) state.capital.cuentas = {};
         state.capital.cuentas[cuenta] = (state.capital.cuentas[cuenta]||0) - target.importe;
         if(!state.capital.historial) state.capital.historial = [];
-        state.capital.historial.push({ id:uid(), tipo:'gasto', cuenta, importe:-target.importe, concepto:`Gasto: ${g.concepto}`, fechaISO:hoy });
+        state.capital.historial.push({ id:uid(), tipo:'gasto', cuenta, importe:-target.importe, concepto:`Gasto: ${g.concepto}`, fecha:hoy, fechaISO:hoy });
         save('gastos'); save('capital');
         if(tabActiva==='gastos') renderTab('gastos', true);
         if(tabActiva==='capital') renderTab('capital', true);
@@ -4535,7 +4543,7 @@ function renderDashboard() {
   const ops = state.trading.operaciones||[];
   const pnlTrading = ops.filter(o=>o.resultado!=='open').reduce((s,o)=>s+(o.pnl||0),0);
   const pnlPron = (state.pronosticos.apuestas||[]).reduce((s,a)=>s+(a.pnl||0),0);
-  const ingCamper = getCamperClientes().flatMap(c=>c.proyectos||[]).filter(p=>p.estado==='cobrado').reduce((s,p)=>s+(p.presupuesto||0),0);
+  const ingCamper = getCamperClientes().flatMap(c=>c.proyectos||[]).filter(p=>p.estado==='cobrado'&&p.fecha&&new Date(p.fecha+'T00:00:00').getMonth()===ahora.getMonth()&&new Date(p.fecha+'T00:00:00').getFullYear()===ahora.getFullYear()).reduce((s,p)=>s+(p.presupuesto||0),0);
   const ingTotal = ingKifar + Math.max(pnlTrading,0) + Math.max(pnlPron,0) + ingCamper;
   const tareasUrg = (state.tareas||[]).filter(t=>!t.done&&t.prioridad==='urgente');
   const tareasVenc = (state.tareas||[]).filter(t=>!t.done&&t.fecha&&diasRest(t.fecha)<0);
@@ -4589,8 +4597,7 @@ function renderDashboard() {
         <div class="sw"><div class="sw-label">Trading</div><div class="sw-val ${pnlTrading>=0?'green':'red'}" style="font-size:18px;">${pnlTrading>=0?'+':''}€${fmt(Math.abs(pnlTrading))}</div></div>
       </div>
       <div class="section-label">Tareas urgentes hoy</div>
-      ${tareasHoy.slice(0,3).map(t=>`<div class="tarea-hoy" style="border-left:2px solid ${PROYECTOS[t.proyectoId]?.c||'var(--border)'}"><div class="t-check ${t.done?'done':''}" onclick="toggleTarea('${t.id}')">${t.done?'✓':''}</div><div><div style="font-size:11px;">${t.titulo}</div></div></div>`).join('')||'<div style="font-size:11px;color:var(--text3);padding:8px 0;">Sin tareas urgentes ✓</div>'}
-      <button class="btn btn-secondary" style="margin-top:12px;font-size:10px;width:100%;" onclick="abrirConfig()">⚙ Configuración</button>`;
+      ${tareasHoy.slice(0,3).map(t=>`<div class="tarea-hoy" style="border-left:2px solid ${PROYECTOS[t.proyectoId]?.c||'var(--border)'}"><div class="t-check ${t.done?'done':''}" onclick="toggleTarea('${t.id}')">${t.done?'✓':''}</div><div><div style="font-size:11px;">${t.titulo}</div></div></div>`).join('')||'<div style="font-size:11px;color:var(--text3);padding:8px 0;">Sin tareas urgentes ✓</div>'}`;
     return;
   }
 
@@ -4768,7 +4775,7 @@ function renderDashboard() {
       const actualData=labelsM.map((d,i)=>{ if(i<diaActual){ acumReal+=ingresosPorDia[i]; return parseFloat(acumReal.toFixed(2)); } return null; });
       chartInstances.chartObjetivoMes=new Chart(ctx2,{type:'line',data:{labels:labelsM,datasets:[
         {label:'Meta',data:metaData,borderColor:'rgba(212,168,83,.5)',borderDash:[4,3],borderWidth:1.5,pointRadius:0,fill:false,tension:0},
-        {label:'Real',data:actualData,borderColor:ingTotal>=ingTotal?'#4ade80':'#f87171',backgroundColor:'rgba(74,222,128,.08)',borderWidth:2,pointRadius:0,fill:true,tension:.3,spanGaps:false}
+        {label:'Real',data:actualData,borderColor:ingTotal>=objMes?'#4ade80':'#f87171',backgroundColor:ingTotal>=objMes?'rgba(74,222,128,.08)':'rgba(248,113,113,.08)',borderWidth:2,pointRadius:0,fill:true,tension:.3,spanGaps:false}
       ]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` €${fmt(ctx.parsed.y)}`}}},scales:{x:{ticks:{color:'#3f3f46',font:{size:9},maxTicksLimit:8},grid:{display:false}},y:{ticks:{color:'#3f3f46',font:{size:9},callback:v=>'€'+Math.round(v/1000)+'k'},grid:{color:'rgba(255,255,255,.04)'},min:0,max:objMes*1.05}}}});
     }
   },100);
@@ -4915,10 +4922,11 @@ async function resetearTodo() {
     capital:{cuentas:{trading:0,etfs:0,cripto:0,revolut:0,pronosticos:0},historial:[],config:{ivaPct:21,irpfPct:25,gastos:32,colchon:8,trading:24,etfs:24,pronosticos:3,colchonObjetivo:10000}},
     ingresos:{},proyectos_camp:[],clientes_camp:[],
     pronosticos:{apuestas:[],bankroll:0,escalera:null,objetivo:40000},
+    gastos:[],trabajadores:[],
     objetivos_vals:{},objetivoMes:15000,
     config:{objetivoMes:15000,objetivos_vals:{}}
   };
-  const mods=['tareas','tareasArchivadas','capital','trading','ingresos','proyectos_camp','clientes_camp','agenda','pronosticos','config'];
+  const mods=['tareas','tareasArchivadas','capital','trading','ingresos','proyectos_camp','clientes_camp','agenda','pronosticos','gastos','trabajadores','config'];
   for(const m of mods){ try{ await window._save(m,state[m]); }catch(e){} }
   showToast('✓ Datos restablecidos · Configurando...');
   setTimeout(()=>abrirSetup(), 600);
@@ -6764,13 +6772,13 @@ function calcReparto() {
   const ing=fmtN(document.getElementById('capIng')?.value);
   const fuente=document.getElementById('capFuente')?.value;
   const el=document.getElementById('capResult'); if(!el||!ing) return;
-  const cfg=state.capital.config||{ivaPct:21,irpfPct:25,gastos:32,colchon:8,trading:24,etfs:24,pronosticos:3,carpinteria:8};
+  const cfg=state.capital.config||{ivaPct:21,irpfPct:25,gastos:32,colchon:8,trading:24,etfs:24,pronosticos:3,reserva_impuestos:8,ahorro:5};
   const tieneIVA=fuente==='negocio';
   const base=tieneIVA?ing/(1+cfg.ivaPct/100):ing;
   const iva=tieneIVA?ing-base:0;
   const irpf=base*cfg.irpfPct/100;
   const neto=ing-iva-irpf;
-  const items=[{l:'IVA → impuestos',v:iva,show:iva>0,c:'var(--red)'},{l:'IRPF → impuestos',v:irpf,c:'var(--red)'},{l:'Gastos',v:neto*cfg.gastos/100,c:'var(--text3)'},{l:'Colchón',v:neto*cfg.colchon/100,c:'var(--blue)'},{l:'Trading',v:neto*cfg.trading/100,c:'var(--gold)'},{l:'ETFs',v:neto*cfg.etfs/100,c:'var(--green)'},{l:'Pronósticos',v:neto*cfg.pronosticos/100,c:'var(--orange)'}].filter(i=>i.v>0.01&&i.show!==false);
+  const items=[{l:'IVA → impuestos',v:iva,show:iva>0,c:'var(--red)'},{l:'IRPF → impuestos',v:irpf,c:'var(--red)'},{l:'Gastos',v:neto*cfg.gastos/100,c:'var(--text3)'},{l:'Colchón',v:neto*cfg.colchon/100,c:'var(--blue)'},{l:'Trading',v:neto*cfg.trading/100,c:'var(--gold)'},{l:'ETFs',v:neto*cfg.etfs/100,c:'var(--green)'},{l:'Pronósticos',v:neto*cfg.pronosticos/100,c:'var(--orange)'},{l:'Reserva impuestos',v:neto*(cfg.reserva_impuestos||0)/100,c:'var(--red)'},{l:'Ahorro',v:neto*(cfg.ahorro||0)/100,c:'var(--teal)'}].filter(i=>i.v>0.01&&i.show!==false);
   el.innerHTML=`<div style="margin-bottom:6px;color:var(--text2);">Neto: <strong style="color:var(--text);">€${fmt(neto)}</strong></div>`+items.map(i=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);"><span>${i.l}</span><span style="color:${i.c};">€${fmt(i.v)}</span></div>`).join('');
 }
 
