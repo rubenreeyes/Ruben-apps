@@ -680,6 +680,13 @@ body{background:var(--bg);color:var(--text);font-family:'Geist Mono',monospace;f
   <input type="hidden" id="mPr-id">
   <div class="field"><label>Descripción *</label><input type="text" id="mPr-desc" placeholder="ej. Real Madrid vs Barcelona - 1X2"></div>
   <div class="field-row"><div class="field"><label>Cuota</label><input type="number" id="mPr-cuota" step="0.01" placeholder="1.85"></div><div class="field"><label>Stake €</label><input type="number" id="mPr-stake" step="0.01"></div></div>
+  <input type="hidden" id="mPr-cat" value="normal">
+  <div class="field"><label>Categoría</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+      <button class="btn btn-secondary" id="cNormal" onclick="setPCat('normal')" style="font-size:10px;">● Normal (1.6–2)</button>
+      <button class="btn btn-secondary" id="cValor" onclick="setPCat('valor')" style="font-size:10px;">🛡 Valor seguro</button>
+    </div>
+  </div>
   <div class="field"><label>Resultado</label>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
       <button class="btn btn-secondary" id="pWin" onclick="setPRes('win')" style="font-size:10px;">✓ Win</button>
@@ -986,7 +993,7 @@ let state = {
   ingresos: {},
   proyectos_camp: [],
   clientes_camp: [],
-  pronosticos: { apuestas: [], bankroll: 0, escalera: null },
+  pronosticos: { apuestas: [], bankroll: 0, escalera: null, objetivo: 40000 },
   gastos: [],
   trabajadores: [],
   objetivos_vals: {},
@@ -2941,11 +2948,12 @@ const IA_TOOLS = [
       proyectoId:{type:"string", enum:["uni","trading","klova","camper","kifar","ia","personal"], description:"def personal"}
     }, required:["titulo","fecha","inicio"] } },
   { name: "registrar_pronostico",
-    description: "Registra una apuesta deportiva.",
+    description: "Registra una apuesta deportiva. categoria: 'normal' (cuota 1.6-2, stake de 1 unidad) o 'valor' (cuota baja ~1.4, stake alto más seguro).",
     input_schema: { type:"object", properties:{
       desc:{type:"string"},
       cuota:{type:"number"},
       stake:{type:"number"},
+      categoria:{type:"string", enum:["normal","valor"], description:"def normal"},
       resultado:{type:"string", enum:["win","loss","pendiente"], description:"def pendiente"},
       fecha:{type:"string", description:"YYYY-MM-DD (def hoy)"}
     }, required:["desc","cuota","stake"] } },
@@ -3151,13 +3159,22 @@ async function ejecutarTool(name, input) {
         const pendientes = apuestas.filter(a=>!a.resultado||a.resultado==='pendiente');
         const cerradas = apuestas.filter(a=>a.resultado==='win'||a.resultado==='loss');
         const pnl = cerradas.reduce((s,a)=>s+(a.pnl||0),0);
+        const inicial = state.pronosticos?.bankroll || 0;
+        const objetivo = state.pronosticos?.objetivo || 40000;
+        const actual = inicial + pnl;
+        const porCat = ['normal','valor'].map(k=>{const sub=cerradas.filter(a=>(a.cat||'normal')===k);const sst=sub.reduce((s,a)=>s+(a.stake||0),0);const sp=sub.reduce((s,a)=>s+(a.pnl||0),0);return {cat:k, n:sub.length, winrate:sub.length?Math.round(sub.filter(a=>a.resultado==='win').length/sub.length*100)+'%':'—', roi:sst>0?(sp/sst*100).toFixed(1)+'%':'—', pnl:sp.toFixed(2)};});
         return {
-          bankroll: state.pronosticos?.bankroll || 0,
-          pendientes: pendientes.map(a=>({fecha:a.fecha, desc:a.desc, cuota:a.cuota, stake:a.stake})),
+          bankrollInicial: inicial,
+          bankrollActual: actual.toFixed(2),
+          objetivo,
+          progresoObjetivo: objetivo>inicial?Math.max(0,Math.min(100,Math.round((actual-inicial)/(objetivo-inicial)*100)))+'%':'—',
+          faltanParaObjetivo: Math.max(0,objetivo-actual).toFixed(2),
+          pendientes: pendientes.map(a=>({fecha:a.fecha, desc:a.desc, cuota:a.cuota, stake:a.stake, cat:a.cat||'normal'})),
           totalCerradas: cerradas.length,
           winrate: cerradas.length?Math.round(cerradas.filter(a=>a.resultado==='win').length/cerradas.length*100)+'%':'—',
           pnlAcumulado: pnl.toFixed(2),
-          ultimas: [...cerradas].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).slice(0,10).map(a=>({fecha:a.fecha, desc:a.desc.substring(0,40), res:a.resultado, pnl:a.pnl}))
+          porCategoria: porCat,
+          ultimas: [...cerradas].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).slice(0,10).map(a=>({fecha:a.fecha, desc:a.desc.substring(0,40), res:a.resultado, pnl:a.pnl, cat:a.cat||'normal'}))
         };
       }
       case "consultar_objetivos": {
@@ -3290,7 +3307,7 @@ async function ejecutarTool(name, input) {
         if(res==='win') pnl = parseFloat(((input.stake*input.cuota)-input.stake).toFixed(2));
         else if(res==='loss') pnl = -input.stake;
         else pnl = null;
-        const ap = { id:uid(), desc:input.desc, cuota:input.cuota, stake:input.stake, resultado:res, pnl, fecha:input.fecha||hoy, horaFin:'' };
+        const ap = { id:uid(), desc:input.desc, cuota:input.cuota, stake:input.stake, cat:input.categoria||'normal', resultado:res, pnl, fecha:input.fecha||hoy, horaFin:'' };
         state.pronosticos.apuestas.push(ap);
         save('pronosticos');
         if(tabActiva==='pronosticos') renderTab('pronosticos', true);
@@ -4897,7 +4914,7 @@ async function resetearTodo() {
     trading:{operaciones:[],cuentasFondeo:[]},
     capital:{cuentas:{trading:0,etfs:0,cripto:0,revolut:0,pronosticos:0},historial:[],config:{ivaPct:21,irpfPct:25,gastos:32,colchon:8,trading:24,etfs:24,pronosticos:3,colchonObjetivo:10000}},
     ingresos:{},proyectos_camp:[],clientes_camp:[],
-    pronosticos:{apuestas:[],bankroll:0,escalera:null},
+    pronosticos:{apuestas:[],bankroll:0,escalera:null,objetivo:40000},
     objetivos_vals:{},objetivoMes:15000,
     config:{objetivoMes:15000,objetivos_vals:{}}
   };
@@ -6132,7 +6149,40 @@ function renderPronosticos() {
   const stakePromedio=cerradas.length?parseFloat((totalStake/cerradas.length).toFixed(2)):0;
   const yield1u=stakePromedio>0?parseFloat((pnl/stakePromedio).toFixed(2)):0;
 
+  // Objetivo Mundial
+  const objetivo=state.pronosticos.objetivo||40000;
+  const inicial=bankroll;
+  const actual=bankroll+pnl;
+  const objPct=objetivo>inicial?Math.max(0,Math.min(100,Math.round((actual-inicial)/(objetivo-inicial)*100))):0;
+  const objRestante=Math.max(0,objetivo-actual);
+  const multActual=inicial>0?(actual/inicial):0;
+  // Estadísticas por categoría
+  const cats=[{k:'normal',l:'● Normal',col:'var(--blue)'},{k:'valor',l:'🛡 Valor seguro',col:'var(--gold)'}];
+  const statsCat=cats.map(c=>{
+    const sub=cerradas.filter(a=>(a.cat||'normal')===c.k);
+    const sw=sub.filter(a=>a.resultado==='win').length;
+    const sst=sub.reduce((s,a)=>s+(a.stake||0),0);
+    const sp=sub.reduce((s,a)=>s+(a.pnl||0),0);
+    return {...c,n:sub.length,wr:sub.length?Math.round(sw/sub.length*100):0,roi:sst>0?parseFloat((sp/sst*100).toFixed(1)):null,pnl:sp};
+  });
+
   el.innerHTML=`
+    <div class="card" style="margin-bottom:8px;border:1px solid var(--gold);background:linear-gradient(135deg,rgba(212,168,83,.06),rgba(212,168,83,.02));">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+        <div>
+          <div style="font-family:'Fraunces',serif;font-size:15px;color:var(--gold);font-weight:600;">🎯 Objetivo Mundial</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px;">€${fmt(inicial)} → €${fmt(objetivo)} · x${multActual.toFixed(1)} actual</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:'Geist Mono',monospace;font-size:18px;color:var(--gold);">€${fmt(actual)}</div>
+          <div style="font-size:9px;color:var(--text3);">faltan €${fmt(objRestante)}</div>
+        </div>
+      </div>
+      <div style="background:var(--s2);border-radius:6px;height:9px;overflow:hidden;">
+        <div style="background:linear-gradient(90deg,var(--gold),var(--gold2));height:100%;width:${objPct}%;transition:width .3s;"></div>
+      </div>
+      <div style="font-size:9px;color:var(--text3);margin-top:4px;text-align:right;">${objPct}% del camino</div>
+    </div>
     <div class="${isDesktop?'desk-grid-4':'g2'}" style="margin-bottom:8px;">
       <div class="sw"><div class="sw-label">P&L Total</div><div class="sw-val ${pnl>=0?'green':'red'}" style="font-size:20px;">${pnl>=0?'+':''}€${fmt(Math.abs(pnl))}</div></div>
       <div class="sw"><div class="sw-label">Bankroll actual</div><div class="sw-val gold" style="font-size:20px;">€${fmt(bankroll+pnl)}</div></div>
@@ -6146,6 +6196,17 @@ function renderPronosticos() {
       <div class="sw" style="padding:9px;"><div class="sw-label">Stake medio</div><div class="sw-val" style="font-size:15px;">${stakePromedio>0?'€'+fmt(stakePromedio):'—'}</div></div>
     </div>
     ${renderEscaleraCard(bankroll+pnl)}
+    ${statsCat.some(c=>c.n>0)?`
+    <div class="card" style="margin-bottom:12px;">
+      <div class="section-label" style="margin-bottom:8px;">Por categoría · normal vs valor</div>
+      <div class="g2">
+        ${statsCat.map(c=>`<div class="sw" style="padding:9px;border-left:2px solid ${c.col};">
+          <div class="sw-label">${c.l}</div>
+          <div class="sw-val ${c.pnl>=0?'green':'red'}" style="font-size:15px;">${c.pnl>=0?'+':''}€${fmt(Math.abs(c.pnl))}</div>
+          <div class="sw-sub">${c.n} ap · ${c.n?c.wr+'% WR':'—'} · ${c.roi===null?'—':(c.roi>0?'+':'')+c.roi+'% ROI'}</div>
+        </div>`).join('')}
+      </div>
+    </div>`:''}
     ${roiPorRango.some(r=>r.n>0)?`
     <div class="card" style="margin-bottom:12px;">
       <div class="section-label" style="margin-bottom:8px;">ROI por rango de cuota</div>
@@ -6155,7 +6216,7 @@ function renderPronosticos() {
     </div>`:''}
     ${pendientes.length?`
       <div class="section-label">⏳ Pendientes (${pendientes.length}) · pulsa ✓ ✗ para marcar</div>
-      ${pendientes.map(a=>`<div class="pron-card" style="border-left-color:var(--orange);"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;cursor:pointer;" onclick="editarPron('${a.id}')"><div style="font-size:12px;">${a.desc}</div><div style="font-size:9px;color:var(--text3);margin-top:2px;">Cuota ${a.cuota||'—'} · €${fmt(a.stake||0)} · ${a.fecha||''}${a.horaFin?' hasta '+a.horaFin:''}</div></div><div style="display:flex;gap:5px;margin-left:8px;flex-shrink:0;"><button onclick="marcarPronRapido('${a.id}','win')" style="background:rgba(74,222,128,.15);border:1px solid var(--green);color:var(--green);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">✓</button><button onclick="marcarPronRapido('${a.id}','loss')" style="background:rgba(248,113,113,.15);border:1px solid var(--red);color:var(--red);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">✗</button><button onclick="marcarPronRapido('${a.id}','void')" style="background:var(--s2);border:1px solid var(--border);color:var(--text3);border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;">○</button></div></div></div>`).join('')}
+      ${pendientes.map(a=>`<div class="pron-card" style="border-left-color:var(--orange);"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;cursor:pointer;" onclick="editarPron('${a.id}')"><div style="font-size:12px;">${a.desc}</div><div style="font-size:9px;color:var(--text3);margin-top:2px;">${(a.cat||'normal')==='valor'?'🛡 ':'● '}Cuota ${a.cuota||'—'} · €${fmt(a.stake||0)} · ${a.fecha||''}${a.horaFin?' hasta '+a.horaFin:''}</div></div><div style="display:flex;gap:5px;margin-left:8px;flex-shrink:0;"><button onclick="marcarPronRapido('${a.id}','win')" style="background:rgba(74,222,128,.15);border:1px solid var(--green);color:var(--green);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">✓</button><button onclick="marcarPronRapido('${a.id}','loss')" style="background:rgba(248,113,113,.15);border:1px solid var(--red);color:var(--red);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;">✗</button><button onclick="marcarPronRapido('${a.id}','void')" style="background:var(--s2);border:1px solid var(--border);color:var(--text3);border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer;">○</button></div></div></div>`).join('')}
       <div style="height:8px;"></div>`:''}
     <div class="${isDesktop?'desk-grid':''}">
       <div>
@@ -6168,7 +6229,7 @@ function renderPronosticos() {
           const ft=a.pnl!=null?(a.pnl>=0?'+':'')+'€'+fmt(Math.abs(a.pnl)):'—';
           return `<div class="pron-card ${a.resultado}" onclick="editarPron('${a.id}')">
             <div style="display:flex;justify-content:space-between;"><div style="font-size:12px;flex:1;">${a.desc}</div><div style="font-family:'Fraunces',serif;font-size:14px;color:${fc};margin-left:8px;">${ft}</div></div>
-            <div style="font-size:9px;color:var(--text3);margin-top:3px;">Cuota ${a.cuota||'—'} · Stake €${fmt(a.stake||0)} · ${a.fecha||''}</div>
+            <div style="font-size:9px;color:var(--text3);margin-top:3px;">${(a.cat||'normal')==='valor'?'🛡 ':'● '}Cuota ${a.cuota||'—'} · Stake €${fmt(a.stake||0)} · ${a.fecha||''}</div>
           </div>`;
         }).join('')||'<div style="font-size:11px;color:var(--text3);padding:8px 0;">Sin pronósticos cerrados</div>'}
       </div>
@@ -6186,6 +6247,12 @@ function renderPronosticos() {
           <div style="display:flex;gap:8px;">
             <input type="number" id="bankrollInput" value="${bankroll}" style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:9px 11px;color:var(--text);font-family:'Geist Mono',monospace;font-size:12px;outline:none;">
             <button class="btn btn-primary" onclick="guardarBankroll()">Guardar</button>
+          </div>
+          <div style="height:8px;"></div>
+          <div class="section-label" style="margin-bottom:8px;">Objetivo € (meta Mundial)</div>
+          <div style="display:flex;gap:8px;">
+            <input type="number" id="objetivoInput" value="${objetivo}" style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:9px 11px;color:var(--text);font-family:'Geist Mono',monospace;font-size:12px;outline:none;">
+            <button class="btn btn-primary" onclick="guardarObjetivo()">Guardar</button>
           </div>
         </div>
       </div>
@@ -6221,11 +6288,13 @@ function marcarPronRapido(id, resultado) {
 }
 
 function setPRes(r) { pRes=r; ['Win','Loss','Void','Pendiente'].forEach(x=>{ const e=document.getElementById('p'+x); if(e) e.style.cssText='font-size:10px;'; }); const c={win:'var(--green)',loss:'var(--red)',void:'var(--text3)',pendiente:'var(--orange)'}; const m={win:'Win',loss:'Loss',void:'Void',pendiente:'Pendiente'}; const e=document.getElementById('p'+m[r]); if(e) e.style.cssText=`font-size:10px;border-color:${c[r]};color:${c[r]};background:${c[r]}15;`; }
-function abrirModalPron() { document.getElementById("mPrT").textContent="Nuevo pronóstico"; document.getElementById("mPr-id").value=""; ["mPr-desc","mPr-cuota","mPr-stake","mPr-pnl"].forEach(i=>document.getElementById(i).value=""); document.getElementById("mPr-fecha").value=hoyISO(); const hf=document.getElementById("mPr-horafin");if(hf)hf.value=""; document.getElementById("mPr-del").style.display="none"; setPRes("pendiente"); abrirModal("mPron"); }
-function editarPron(id) { const a=(state.pronosticos.apuestas||[]).find(x=>x.id===id); if(!a) return; document.getElementById("mPrT").textContent="Editar pronóstico"; document.getElementById("mPr-id").value=id; document.getElementById("mPr-desc").value=a.desc||""; document.getElementById("mPr-cuota").value=a.cuota||""; document.getElementById("mPr-stake").value=a.stake||""; document.getElementById("mPr-pnl").value=a.pnl!=null?a.pnl:""; document.getElementById("mPr-fecha").value=a.fecha||hoyISO(); const hf=document.getElementById("mPr-horafin");if(hf)hf.value=a.horaFin||""; document.getElementById("mPr-del").style.display="block"; setPRes(a.resultado||"pendiente"); abrirModal("mPron"); }
-function guardarPron() { const desc=document.getElementById("mPr-desc").value.trim(); if(!desc){alert("Descripción obligatoria");return;} if(!state.pronosticos.apuestas) state.pronosticos.apuestas=[]; const id=document.getElementById("mPr-id").value||uid(); const cuota=fmtN(document.getElementById("mPr-cuota").value); const stake=fmtN(document.getElementById("mPr-stake").value); const horaFin=document.getElementById("mPr-horafin")?.value||""; let pnl=parseFloat(document.getElementById("mPr-pnl").value); if(isNaN(pnl)){ if(pRes==="win"&&cuota&&stake) pnl=parseFloat(((stake*cuota)-stake).toFixed(2)); else if(pRes==="loss") pnl=-stake; else pnl=0; } if(pRes==="loss"&&pnl>0) pnl=-pnl; const ap={id,desc,cuota,stake,resultado:pRes,pnl:pRes==="pendiente"?null:pnl,fecha:document.getElementById("mPr-fecha").value,horaFin}; const idx=state.pronosticos.apuestas.findIndex(x=>x.id===id); if(idx>=0) state.pronosticos.apuestas[idx]=ap; else state.pronosticos.apuestas.push(ap); save("pronosticos"); cerrarModal("mPron"); renderPronosticos(); actualizarBadges(); showToast("✓ Pronóstico guardado"); }
+function setPCat(c) { document.getElementById('mPr-cat').value=c; [['normal','cNormal'],['valor','cValor']].forEach(([k,id])=>{ const e=document.getElementById(id); if(e) e.style.cssText='font-size:10px;'; }); const col=c==='valor'?'var(--gold)':'var(--blue)'; const e=document.getElementById(c==='valor'?'cValor':'cNormal'); if(e) e.style.cssText=`font-size:10px;border-color:${col};color:${col};background:${col}15;`; }
+function abrirModalPron() { document.getElementById("mPrT").textContent="Nuevo pronóstico"; document.getElementById("mPr-id").value=""; ["mPr-desc","mPr-cuota","mPr-stake","mPr-pnl"].forEach(i=>document.getElementById(i).value=""); document.getElementById("mPr-fecha").value=hoyISO(); const hf=document.getElementById("mPr-horafin");if(hf)hf.value=""; document.getElementById("mPr-del").style.display="none"; setPRes("pendiente"); setPCat("normal"); abrirModal("mPron"); }
+function editarPron(id) { const a=(state.pronosticos.apuestas||[]).find(x=>x.id===id); if(!a) return; document.getElementById("mPrT").textContent="Editar pronóstico"; document.getElementById("mPr-id").value=id; document.getElementById("mPr-desc").value=a.desc||""; document.getElementById("mPr-cuota").value=a.cuota||""; document.getElementById("mPr-stake").value=a.stake||""; document.getElementById("mPr-pnl").value=a.pnl!=null?a.pnl:""; document.getElementById("mPr-fecha").value=a.fecha||hoyISO(); const hf=document.getElementById("mPr-horafin");if(hf)hf.value=a.horaFin||""; document.getElementById("mPr-del").style.display="block"; setPRes(a.resultado||"pendiente"); setPCat(a.cat||"normal"); abrirModal("mPron"); }
+function guardarPron() { const desc=document.getElementById("mPr-desc").value.trim(); if(!desc){alert("Descripción obligatoria");return;} if(!state.pronosticos.apuestas) state.pronosticos.apuestas=[]; const id=document.getElementById("mPr-id").value||uid(); const cuota=fmtN(document.getElementById("mPr-cuota").value); const stake=fmtN(document.getElementById("mPr-stake").value); const horaFin=document.getElementById("mPr-horafin")?.value||""; let pnl=parseFloat(document.getElementById("mPr-pnl").value); if(isNaN(pnl)){ if(pRes==="win"&&cuota&&stake) pnl=parseFloat(((stake*cuota)-stake).toFixed(2)); else if(pRes==="loss") pnl=-stake; else pnl=0; } if(pRes==="loss"&&pnl>0) pnl=-pnl; const cat=document.getElementById("mPr-cat")?.value||"normal"; const ap={id,desc,cuota,stake,cat,resultado:pRes,pnl:pRes==="pendiente"?null:pnl,fecha:document.getElementById("mPr-fecha").value,horaFin}; const idx=state.pronosticos.apuestas.findIndex(x=>x.id===id); if(idx>=0) state.pronosticos.apuestas[idx]=ap; else state.pronosticos.apuestas.push(ap); save("pronosticos"); cerrarModal("mPron"); renderPronosticos(); actualizarBadges(); showToast("✓ Pronóstico guardado"); }
 function eliminarPron() { const id=document.getElementById("mPr-id").value; if(!confirm("¿Eliminar?")) return; state.pronosticos.apuestas=(state.pronosticos.apuestas||[]).filter(x=>x.id!==id); save("pronosticos"); cerrarModal("mPron"); renderPronosticos(); actualizarBadges(); showToast("Eliminado"); }
 function guardarBankroll() { const v=fmtN(document.getElementById("bankrollInput").value); state.pronosticos.bankroll=v; save("pronosticos"); renderPronosticos(); showToast("✓ Bankroll actualizado"); }
+function guardarObjetivo() { const v=fmtN(document.getElementById("objetivoInput").value); state.pronosticos.objetivo=v||40000; save("pronosticos"); renderPronosticos(); showToast("✓ Objetivo actualizado"); }
 
 // ─── ESCALERA 10x ─────────────────────────────────────
 // De X a 10X en 3 fases con reservas progresivas.
