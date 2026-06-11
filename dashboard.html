@@ -79,7 +79,7 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('userAvatar').src = user.photoURL || '';
     document.getElementById('userName').textContent = user.displayName?.split(' ')[0] || 'Rubén';
     document.getElementById('loadingBar').style.display = 'block';
-    const mods = ['tareas','tareasArchivadas','capital','trading','ingresos','proyectos_camp','clientes_camp','agenda','pronosticos','gastos','trabajadores','config'];
+    const mods = ['tareas','tareasArchivadas','capital','trading','ingresos','proyectos_camp','clientes_camp','agenda','pronosticos','gastos','trabajadores','config','crm'];
     for (const m of mods) {
       try {
         const snap = await getDoc(doc(db, 'users', userId, 'modulos', m));
@@ -569,6 +569,7 @@ body{background:var(--bg);color:var(--text);font-family:'Geist Mono',monospace;f
     <div class="nav-item" draggable="true" data-tab="ingtotal" onclick="renderTab('ingtotal')"><div class="nav-icon">📊</div><div class="nav-label">Ingresos</div></div>
     <div class="nav-item" draggable="true" data-tab="gastos" onclick="renderTab('gastos')"><div class="nav-icon">💸</div><div class="nav-label">Gastos</div></div>
     <div class="nav-item" draggable="true" data-tab="trabajadores" onclick="renderTab('trabajadores')"><div class="nav-icon">👷</div><div class="nav-label">Trabajadores</div></div>
+    <div class="nav-item" draggable="true" data-tab="crm" onclick="renderTab('crm')"><div class="nav-icon">👥</div><div class="nav-label">CRM</div></div>
   </div>
 
   <div class="app-content">
@@ -582,6 +583,7 @@ body{background:var(--bg);color:var(--text);font-family:'Geist Mono',monospace;f
     <div class="panel" id="panel-ingtotal"></div>
     <div class="panel" id="panel-gastos"></div>
     <div class="panel" id="panel-trabajadores"></div>
+    <div class="panel" id="panel-crm"></div>
   </div>
 </div>
 
@@ -1756,6 +1758,148 @@ function verHistorialTrabajador(trabajadorId) {
       </div>`;
     }).join('')}
   `;
+}
+
+// ─── MÓDULO CRM ───────────────────────────────────────
+const CRM_NEGOCIO = { kifar:{e:'🪵',n:'Kifar',c:'#2dd4bf'}, klova:{e:'🔩',n:'Klova',c:'#d4a853'}, camper:{e:'🚐',n:'Camper',c:'#a78bfa'} };
+const CRM_ESTADO  = {
+  nuevo:         { e:'🔵', n:'Nuevo',        c:'#3b82f6' },
+  contactado:    { e:'🟡', n:'Contactado',   c:'#f59e0b' },
+  presupuestado: { e:'🟠', n:'Presupuestado',c:'#f97316' },
+  ganado:        { e:'🟢', n:'Ganado',       c:'#22c55e' },
+  perdido:       { e:'⚫', n:'Perdido',      c:'#6b7280' },
+};
+const CRM_PRES_ESTADO = {
+  borrador: { e:'📝', n:'Borrador', c:'#6b7280' },
+  enviado:  { e:'📤', n:'Enviado',  c:'#3b82f6' },
+  aceptado: { e:'✅', n:'Aceptado', c:'#22c55e' },
+  rechazado:{ e:'❌', n:'Rechazado',c:'#ef4444' },
+};
+
+function getCrm() {
+  const raw = state.crm || {};
+  return {
+    clientes:     Array.isArray(raw.clientes)     ? raw.clientes     : [],
+    leads:        Array.isArray(raw.leads)         ? raw.leads         : [],
+    presupuestos: Array.isArray(raw.presupuestos) ? raw.presupuestos : [],
+  };
+}
+
+function renderCrm() {
+  const el = document.getElementById('panel-crm');
+  if (!el) return;
+  const crm = getCrm();
+  const COLUMNAS = ['nuevo','contactado','presupuestado','ganado','perdido'];
+  const isDesktop = window.innerWidth >= 768;
+
+  const pipeline = COLUMNAS.map(est => {
+    const leads = crm.leads.filter(l => l.estado === est).sort((a,b) => (b.creado||'').localeCompare(a.creado||''));
+    const cfg = CRM_ESTADO[est];
+    const cards = leads.map(l => {
+      const neg = CRM_NEGOCIO[l.negocio] || {};
+      return `<div class="op-card" style="cursor:pointer;margin-bottom:6px;" onclick="abrirModalLead('${l.id}')">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${l.nombre}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${neg.e||''} ${neg.n||l.negocio} · ${l.contacto||'—'}</div>
+          ${l.descripcion ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${l.descripcion}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    return `<div style="flex:1;min-width:${isDesktop?'160px':'140px'};max-width:${isDesktop?'220px':'200px'};">
+      <div style="font-size:10px;font-weight:600;color:${cfg.c};margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">${cfg.e} ${cfg.n} <span style="color:var(--text3);font-weight:400;">(${leads.length})</span></div>
+      ${cards || '<div style="font-size:10px;color:var(--text3);padding:6px 0;">Sin leads</div>'}
+    </div>`;
+  }).join('');
+
+  const presupuestos = crm.presupuestos.slice().sort((a,b) => (b.creado||'').localeCompare(a.creado||'')).slice(0,20);
+  const presRows = presupuestos.length
+    ? presupuestos.map(p => {
+        const cfg = CRM_PRES_ESTADO[p.estado] || {};
+        const neg = CRM_NEGOCIO[p.negocio] || {};
+        return `<div class="op-card" style="margin-bottom:5px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.concepto}</div>
+            <div style="font-size:10px;color:var(--text3);">${neg.e||''} ${neg.n||p.negocio}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px;">
+            <div style="font-size:12px;font-family:'Geist Mono',monospace;">${fmt(p.total||0)}€</div>
+            <div style="font-size:10px;color:${cfg.c||'var(--text3)'};">${cfg.e||''} ${cfg.n||p.estado}</div>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div style="font-size:11px;color:var(--text3);padding:8px 0;">Sin presupuestos</div>';
+
+  const totalLeads = crm.leads.length;
+  const totalGanados = crm.leads.filter(l => l.estado === 'ganado').length;
+  const totalPres = crm.presupuestos.filter(p => p.estado === 'enviado' || p.estado === 'aceptado').reduce((s,p) => s+(p.total||0), 0);
+
+  el.innerHTML = `
+    <div style="padding:14px 14px 80px;">
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:100px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;"><div style="font-size:20px;font-family:'Geist Mono',monospace;font-weight:600;">${totalLeads}</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">Leads totales</div></div>
+        <div style="flex:1;min-width:100px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;"><div style="font-size:20px;font-family:'Geist Mono',monospace;font-weight:600;color:var(--green);">${totalGanados}</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">Ganados</div></div>
+        <div style="flex:1;min-width:100px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;"><div style="font-size:20px;font-family:'Geist Mono',monospace;font-weight:600;">${fmt(totalPres)}€</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">En juego</div></div>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Pipeline</div>
+      <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;">${pipeline}</div>
+      <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 10px;">Presupuestos</div>
+      ${presRows}
+    </div>`;
+}
+
+function abrirModalLead(id) {
+  const crm = getCrm();
+  const lead = id ? crm.leads.find(l => l.id === id) : null;
+  document.getElementById('mLeadT').textContent = lead ? 'Editar lead' : 'Nuevo lead';
+  document.getElementById('mLead-id').value       = lead?.id        || '';
+  document.getElementById('mLead-nombre').value   = lead?.nombre    || '';
+  document.getElementById('mLead-contacto').value = lead?.contacto  || '';
+  document.getElementById('mLead-negocio').value  = lead?.negocio   || 'kifar';
+  document.getElementById('mLead-origen').value   = lead?.origen    || 'manual';
+  document.getElementById('mLead-estado').value   = lead?.estado    || 'nuevo';
+  document.getElementById('mLead-desc').value     = lead?.descripcion || '';
+  document.getElementById('mLead-del').style.display = lead ? '' : 'none';
+  abrirModal('mLead');
+}
+
+function guardarLead() {
+  const nombre = document.getElementById('mLead-nombre').value.trim();
+  if (!nombre) { alert('El nombre es obligatorio'); return; }
+  if (!state.crm) state.crm = { clientes:[], leads:[], presupuestos:[] };
+  const id  = document.getElementById('mLead-id').value || uid();
+  const hoy = hoyISO();
+  const existente = state.crm.leads.find(l => l.id === id);
+  const lead = {
+    id,
+    nombre,
+    contacto:    document.getElementById('mLead-contacto').value.trim(),
+    negocio:     document.getElementById('mLead-negocio').value,
+    origen:      document.getElementById('mLead-origen').value,
+    estado:      document.getElementById('mLead-estado').value,
+    descripcion: document.getElementById('mLead-desc').value.trim(),
+    creado:      existente?.creado || hoy,
+    ultimoContacto: existente?.ultimoContacto || null,
+    clienteId:   existente?.clienteId   || null,
+    presupuestoId: existente?.presupuestoId || null,
+    cita:        existente?.cita        || null,
+  };
+  const idx = state.crm.leads.findIndex(l => l.id === id);
+  if (idx >= 0) state.crm.leads[idx] = lead; else state.crm.leads.push(lead);
+  save('crm');
+  cerrarModal('mLead');
+  renderCrm();
+  showToast('✓ Lead guardado');
+}
+
+function eliminarLead() {
+  const id = document.getElementById('mLead-id').value;
+  if (!id || !state.crm) return;
+  if (!confirm('¿Eliminar este lead?')) return;
+  state.crm.leads = state.crm.leads.filter(l => l.id !== id);
+  save('crm');
+  cerrarModal('mLead');
+  renderCrm();
+  showToast('Lead eliminado');
 }
 
 // ─── MÓDULO GASTOS ────────────────────────────────────
@@ -4527,9 +4671,9 @@ function renderTab(id, silent=false) {
     if(panel) panel.classList.add('active');
   }
   const fab=document.getElementById('fabBtn');
-  const fabMap={tareas:abrirModalTarea,trading:()=>abrirModalOp(),pronosticos:()=>abrirModalPron(),kifar:()=>abrirModalIngreso(),camper:()=>abrirModalProyecto(),gastos:()=>abrirModalGasto(),trabajadores:()=>abrirModalTrabajador()};
+  const fabMap={tareas:abrirModalTarea,trading:()=>abrirModalOp(),pronosticos:()=>abrirModalPron(),kifar:()=>abrirModalIngreso(),camper:()=>abrirModalProyecto(),gastos:()=>abrirModalGasto(),trabajadores:()=>abrirModalTrabajador(),crm:()=>abrirModalLead()};
   if(fabMap[id]){ fab.className='fab visible'; fab.onclick=fabMap[id]; } else { fab.className='fab'; }
-  const renderers = {dashboard:renderDashboard,tareas:renderTareas,trading:renderTrading,pronosticos:renderPronosticos,capital:renderCapital,kifar:renderKifar,camper:renderCamper,ingtotal:renderIngTotal,gastos:renderGastos,trabajadores:renderTrabajadores};
+  const renderers = {dashboard:renderDashboard,tareas:renderTareas,trading:renderTrading,pronosticos:renderPronosticos,capital:renderCapital,kifar:renderKifar,camper:renderCamper,ingtotal:renderIngTotal,gastos:renderGastos,trabajadores:renderTrabajadores,crm:renderCrm};
   if(renderers[id]) renderers[id]();
 }
 
@@ -7929,6 +8073,20 @@ document.addEventListener('DOMContentLoaded', () => { restaurarOrdenTabs(); init
   </div>
 </div></div>
 
+
+<div class="modal-overlay" id="mLead"><div class="modal">
+  <div class="modal-handle"></div><h3 id="mLeadT">Nuevo lead</h3>
+  <input type="hidden" id="mLead-id">
+  <div class="field"><label>Nombre *</label><input type="text" id="mLead-nombre"></div>
+  <div class="field"><label>Contacto (tel / email)</label><input type="text" id="mLead-contacto"></div>
+  <div class="field"><label>Negocio</label><select id="mLead-negocio"><option value="kifar">🪵 Kifar</option><option value="klova">🔩 Klova</option><option value="camper">🚐 Camper</option></select></div>
+  <div class="field"><label>Origen</label><select id="mLead-origen"><option value="manual">Manual</option><option value="telegram">Telegram</option><option value="instagram">Instagram</option><option value="web">Web</option><option value="calcom">Cal.com</option></select></div>
+  <div class="field"><label>Estado</label><select id="mLead-estado"><option value="nuevo">Nuevo</option><option value="contactado">Contactado</option><option value="presupuestado">Presupuestado</option><option value="ganado">Ganado</option><option value="perdido">Perdido</option></select></div>
+  <div class="field"><label>Descripción</label><textarea id="mLead-desc"></textarea></div>
+  <button class="btn btn-primary btn-full" onclick="guardarLead()">Guardar</button>
+  <button class="btn btn-danger btn-full" id="mLead-del" style="display:none" onclick="eliminarLead()">Eliminar lead</button>
+  <button class="btn btn-secondary btn-full" onclick="cerrarModal('mLead')">Cancelar</button>
+</div></div>
 
 <div class="modal-overlay" id="mIA"><div class="modal" style="max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
   <div style="padding:16px 18px 10px;border-bottom:1px solid var(--border);flex-shrink:0;">
