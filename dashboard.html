@@ -6678,13 +6678,17 @@ function renderCapital() {
         </div>
         <div class="section-label" style="margin-top:14px;">Asignación por negocio</div>
         <div class="card">
-          ${[['coches','Coches'],['kifar','Kifar'],['klova','Klova'],['camper','Camper'],['trading','Trading'],['reserva_impuestos','Reserva impuestos'],['ahorro','Ahorro'],['personal','Personal']].map(([n,l])=>`
+          ${negociosLista().map(({id,label})=>`
             <div class="field" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <label style="flex:1;margin:0;">${l}</label>
-              <input type="number" id="neg-${n}" value="${neg[n]||0}" style="width:110px;" oninput="recalcAsignacion()">
+              <label style="flex:1;margin:0;font-size:11px;">${label}</label>
+              <input type="number" id="neg-${id}" value="${neg[id]||0}" style="width:100px;" oninput="recalcAsignacion()">
+              <button onclick="eliminarNegocioCapital('${id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:0 2px;" title="Eliminar">×</button>
             </div>`).join('')}
-          <div id="asigResumen" style="font-size:10px;color:var(--text3);margin:6px 0;"></div>
-          <button class="btn btn-secondary" style="font-size:9px;padding:5px 12px;" onclick="guardarAsignacionNegocios()">Guardar asignación</button>
+          <div id="asigResumen" style="font-size:10px;color:var(--text3);margin:8px 0 6px;"></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-secondary" style="font-size:9px;padding:5px 12px;" onclick="guardarAsignacionNegocios()">Guardar asignación</button>
+            <button class="btn btn-secondary" style="font-size:9px;padding:5px 12px;" onclick="anadirNegocioCapital()">+ Añadir</button>
+          </div>
         </div>
         <div class="chart-wrap">
           <div class="chart-title">Distribución del patrimonio</div>
@@ -6808,18 +6812,44 @@ function guardarCapital() {
   save('capital'); cerrarModal('mCapital'); renderCapital(); showToast('✓ Capital actualizado');
 }
 
-const NEGOCIOS_CAPITAL=['coches','kifar','klova','camper','trading','reserva_impuestos','ahorro','personal'];
+// Lista dinámica de negocios — se guarda en state.capital.negociosConfig
+const NEGOCIOS_DEFAULT=[{id:'coches',label:'Coches'},{id:'kifar',label:'Kifar'},{id:'klova',label:'Klova'},{id:'camper',label:'Camper'},{id:'trading',label:'Trading'},{id:'reserva_impuestos',label:'Reserva impuestos'},{id:'ahorro',label:'Ahorro'},{id:'personal',label:'Personal'}];
+function negociosLista() {
+  const cfg=state.capital?.negociosConfig;
+  return (cfg&&cfg.length>0)?cfg:[...NEGOCIOS_DEFAULT];
+}
 function recalcAsignacion() {
-  let tot=0; NEGOCIOS_CAPITAL.forEach(n=>{ const e=document.getElementById('neg-'+n); if(e) tot+=fmtN(e.value||0); });
+  let tot=0; negociosLista().forEach(({id})=>{ const e=document.getElementById('neg-'+id); if(e) tot+=fmtN(e.value||0); });
   const c=state.capital.cuentas||{};
   const patrimonio=Object.entries(c).reduce((s,[,v])=>s+v,0);
   const r=document.getElementById('asigResumen');
-  if(r) r.innerHTML=`Asignado: €${fmt(tot)} · Patrimonio: €${fmt(patrimonio)} · Sin asignar: €${fmt(patrimonio-tot)}`;
+  if(r) r.innerHTML=`Asignado: €${fmt(tot)} · Patrimonio: €${fmt(patrimonio)} · <span style="color:${patrimonio-tot<0?'var(--red)':'var(--text3)'};">Sin asignar: €${fmt(patrimonio-tot)}</span>`;
 }
 function guardarAsignacionNegocios() {
   if(!state.capital.negocios) state.capital.negocios={};
-  NEGOCIOS_CAPITAL.forEach(n=>{ const e=document.getElementById('neg-'+n); if(e) state.capital.negocios[n]=fmtN(e.value||0); });
+  negociosLista().forEach(({id})=>{ const e=document.getElementById('neg-'+id); if(e) state.capital.negocios[id]=fmtN(e.value||0); });
   save('capital'); renderCapital(); showToast('✓ Asignación guardada');
+}
+function anadirNegocioCapital() {
+  const nombre=prompt('Nombre del negocio o cuenta:');
+  if(!nombre||!nombre.trim()) return;
+  const id=nombre.trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+  if(!id){showToast('Nombre inválido');return;}
+  const lista=negociosLista();
+  if(lista.find(n=>n.id===id)){showToast('Ya existe');return;}
+  if(!state.capital.negociosConfig) state.capital.negociosConfig=[...NEGOCIOS_DEFAULT];
+  state.capital.negociosConfig.push({id,label:nombre.trim()});
+  save('capital'); renderCapital(); showToast(`✓ "${nombre.trim()}" añadido`);
+}
+function eliminarNegocioCapital(id) {
+  const lista=negociosLista();
+  const neg=lista.find(n=>n.id===id);
+  if(!neg) return;
+  if(!confirm(`¿Eliminar "${neg.label}" de la asignación?\nEl importe asignado se borrará.`)) return;
+  if(!state.capital.negociosConfig) state.capital.negociosConfig=[...NEGOCIOS_DEFAULT];
+  state.capital.negociosConfig=state.capital.negociosConfig.filter(n=>n.id!==id);
+  if(state.capital.negocios) delete state.capital.negocios[id];
+  save('capital'); renderCapital(); showToast(`✓ "${neg.label}" eliminado`);
 }
 
 // ─── KIFAR ────────────────────────────────────────────
