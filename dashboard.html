@@ -6265,6 +6265,10 @@ function renderPronosticos() {
   const pendientes=aps.filter(a=>!a.resultado||a.resultado==='pendiente');
   const cerradas=aps.filter(a=>a.resultado&&a.resultado!=='pendiente');
   const pnl=cerradas.reduce((s,a)=>s+(a.pnl||0),0);
+  // Resumen de pronósticos pendientes (riesgo y ganancia potencial)
+  const pendRiesgo=pendientes.reduce((s,a)=>s+(a.stake||0),0);
+  const pendRetorno=pendientes.reduce((s,a)=>s+((a.stake||0)*(a.cuota||0)),0);
+  const pendGananciaNeta=pendRetorno-pendRiesgo;
   const wins=cerradas.filter(a=>a.resultado==='win');
   const losses=cerradas.filter(a=>a.resultado==='loss');
   const wr=cerradas.length?Math.round(wins.length/cerradas.length*100):0;
@@ -6347,7 +6351,15 @@ function renderPronosticos() {
       <div class="sw" style="padding:9px;"><div class="sw-label">Yield (unidades)</div><div class="sw-val ${yield1u>=0?'green':'red'}" style="font-size:15px;">${cerradas.length?(yield1u>0?'+':'')+yield1u+'u':'—'}</div></div>
       <div class="sw" style="padding:9px;"><div class="sw-label">Stake medio</div><div class="sw-val" style="font-size:15px;">${stakePromedio>0?'€'+fmt(stakePromedio):'—'}</div></div>
     </div>
-    ${renderEscaleraCard(bankroll+pnl)}
+    ${pendientes.length?`
+    <div class="card" style="margin-bottom:12px;border:1px solid var(--orange);background:linear-gradient(135deg,rgba(251,146,60,.07),rgba(251,146,60,.02));">
+      <div class="section-label" style="margin-bottom:8px;color:var(--orange);">⏳ Pendientes en juego</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        <div class="sw"><div class="sw-label">Pronósticos</div><div class="sw-val" style="font-size:20px;">${pendientes.length}</div><div class="sw-sub">en curso</div></div>
+        <div class="sw"><div class="sw-label">En riesgo</div><div class="sw-val red" style="font-size:20px;">€${fmt(pendRiesgo)}</div><div class="sw-sub">suma de importes</div></div>
+        <div class="sw"><div class="sw-label">Ganancia potencial</div><div class="sw-val green" style="font-size:20px;">+€${fmt(pendGananciaNeta)}</div><div class="sw-sub">retorno €${fmt(pendRetorno)} si entran todas</div></div>
+      </div>
+    </div>`:''}
     ${statsCat.some(c=>c.n>0)?`
     <div class="card" style="margin-bottom:12px;">
       <div class="section-label" style="margin-bottom:8px;">Por categoría · normal vs valor</div>
