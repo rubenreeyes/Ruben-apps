@@ -4887,8 +4887,23 @@ function renderDashboard() {
     const ctx1 = document.getElementById('chartPatrimonio')?.getContext('2d');
     if(ctx1){
       const hist = state.capital.historial||[];
+      const cuentasPat = state.capital.cuentas||{};
       const labels=[],vals=[];
-      for(let i=5;i>=0;i--){ const d=new Date(); d.setMonth(d.getMonth()-i); labels.push(MESES_S[d.getMonth()]); const enMes=hist.filter(h=>h.fecha&&h.fecha.substring(0,7)===`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`); vals.push(enMes.length?enMes[enMes.length-1].nuevo:patrimonio); }
+      for(let i=5;i>=0;i--){
+        const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
+        labels.push(MESES_S[d.getMonth()]);
+        // Corte = fin de ese mes (o hoy si es el mes actual)
+        const finMes=new Date(d.getFullYear(),d.getMonth()+1,0);
+        const corte = finMes>ahora ? ahora : finMes;
+        const corteStr=`${corte.getFullYear()}-${String(corte.getMonth()+1).padStart(2,'0')}-${String(corte.getDate()).padStart(2,'0')}`;
+        // Patrimonio total = suma del último valor conocido de cada cuenta hasta ese corte
+        let total=0;
+        Object.keys(cuentasPat).forEach(k=>{
+          const ult=hist.filter(h=>h.cuenta===k&&h.fecha&&h.fecha<=corteStr).slice(-1)[0];
+          total+=ult?ult.nuevo:(cuentasPat[k]||0);
+        });
+        vals.push(total);
+      }
       chartInstances.chartPatrimonio=new Chart(ctx1,{type:'line',data:{labels,datasets:[{data:vals,borderColor:'#d4a853',backgroundColor:'rgba(212,168,83,.08)',tension:.4,fill:true,pointBackgroundColor:'#d4a853',pointRadius:3}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#3f3f46',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#3f3f46',font:{size:10},callback:v=>'€'+Math.round(v/1000)+'k'},grid:{color:'rgba(255,255,255,.04)'}}}}});
     }
 
