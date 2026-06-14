@@ -6369,10 +6369,11 @@ function renderPronosticos() {
     ${pendientes.length?`
     <div class="card" style="margin-bottom:12px;border:1px solid var(--orange);background:linear-gradient(135deg,rgba(251,146,60,.07),rgba(251,146,60,.02));">
       <div class="section-label" style="margin-bottom:8px;color:var(--orange);">⏳ Pendientes en juego</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+      <div style="display:grid;grid-template-columns:${isDesktop?'repeat(4,1fr)':'repeat(2,1fr)'};gap:8px;">
         <div class="sw"><div class="sw-label">Pronósticos</div><div class="sw-val" style="font-size:20px;">${pendientes.length}</div><div class="sw-sub">en curso</div></div>
         <div class="sw"><div class="sw-label">En riesgo</div><div class="sw-val red" style="font-size:20px;">€${fmt(pendRiesgo)}</div><div class="sw-sub">suma de importes</div></div>
         <div class="sw"><div class="sw-label">Ganancia potencial</div><div class="sw-val green" style="font-size:20px;">+€${fmt(pendGananciaNeta)}</div><div class="sw-sub">retorno €${fmt(pendRetorno)} si entran todas</div></div>
+        <div class="sw"><div class="sw-label">Banca libre</div><div class="sw-val gold" style="font-size:20px;">€${fmt(bankroll+pnl-pendRiesgo)}</div><div class="sw-sub">disponible fuera de juego</div></div>
       </div>
     </div>`:''}
     ${statsCat.some(c=>c.n>0)?`
