@@ -6334,6 +6334,10 @@ function renderPronosticos() {
   const objPct=objetivo>inicial?Math.max(0,Math.min(100,Math.round((actual-inicial)/(objetivo-inicial)*100))):0;
   const objRestante=Math.max(0,objetivo-actual);
   const multActual=inicial>0?(actual/inicial):0;
+  // Días hasta la final del Mundial 2026 (19 jul 2026) y objetivo diario de referencia
+  const FIN_MUNDIAL=new Date('2026-07-19T23:59:59');
+  const diasMundial=Math.max(1,Math.ceil((FIN_MUNDIAL-new Date())/86400000));
+  const objetivoDiario=objRestante/diasMundial;
   // Estadísticas por categoría
   const cats=[{k:'normal',l:'● Normal',col:'var(--blue)'},{k:'valor',l:'🛡 Valor seguro',col:'var(--gold)'}];
   const statsCat=cats.map(c=>{
@@ -6359,7 +6363,14 @@ function renderPronosticos() {
       <div style="background:var(--s2);border-radius:6px;height:9px;overflow:hidden;">
         <div style="background:linear-gradient(90deg,var(--gold),var(--gold2));height:100%;width:${objPct}%;transition:width .3s;"></div>
       </div>
-      <div style="font-size:9px;color:var(--text3);margin-top:4px;text-align:right;">${objPct}% del camino</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;font-size:9px;color:var(--text3);">
+        <span>📆 ${diasMundial} ${diasMundial===1?'día':'días'} hasta la final</span>
+        <span>${objPct}% del camino</span>
+      </div>
+      <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:10px;color:var(--text2);">🎯 Objetivo diario de referencia</span>
+        <span style="font-family:'Geist Mono',monospace;font-size:14px;color:var(--gold);">+€${fmt(objetivoDiario)}<span style="font-size:9px;color:var(--text3);">/día</span></span>
+      </div>
     </div>
     <div class="${isDesktop?'desk-grid-4':'g2'}" style="margin-bottom:8px;">
       <div class="sw"><div class="sw-label">P&L Total</div><div class="sw-val ${pnl>=0?'green':'red'}" style="font-size:20px;">${pnl>=0?'+':''}€${fmt(Math.abs(pnl))}</div></div>
