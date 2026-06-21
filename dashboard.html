@@ -79,13 +79,14 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById('userAvatar').src = user.photoURL || '';
     document.getElementById('userName').textContent = user.displayName?.split(' ')[0] || 'Rubén';
     document.getElementById('loadingBar').style.display = 'block';
-    const mods = ['tareas','tareasArchivadas','capital','trading','ingresos','proyectos_camp','clientes_camp','agenda','pronosticos','gastos','trabajadores','config','crm'];
+    const mods = ['tareas','tareasArchivadas','capital','trading','ingresos','proyectos_camp','clientes_camp','agenda','pronosticos','gastos','trabajadores','config','crm','proyectos'];
     for (const m of mods) {
       try {
         const snap = await getDoc(doc(db, 'users', userId, 'modulos', m));
         if (snap.exists()) state[m] = JSON.parse(snap.data().data);
       } catch(e) {}
     }
+    await seedProyectos();
     document.getElementById('loadingBar').style.display = 'none';
     // Migración: eliminar cuentas obsoletas
     if(state.capital?.cuentas) {
@@ -100,6 +101,7 @@ onAuthStateChanged(auth, async (user) => {
       const u = onSnapshot(doc(db, 'users', userId, 'modulos', m), (snap) => {
         if (snap.exists() && !snap.metadata.hasPendingWrites) {
           state[m] = JSON.parse(snap.data().data);
+          if (m === 'proyectos') syncProyectosEnum();
           // Re-aplicar migración de cuentas obsoletas si llegan del servidor
           if (m === 'capital' && state.capital?.cuentas) {
             const cuentasObsoletas = ['impuestos','carpinteria'];
@@ -980,7 +982,7 @@ body{background:var(--bg);color:var(--text);font-family:'Geist Mono',monospace;f
 // ─── CONSTANTES ───────────────────────────────────────
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const MESES_S = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-const PROYECTOS = {
+let PROYECTOS = {
   uni:{n:'Universidad',c:'#60a5fa'}, trading:{n:'Trading',c:'#4ade80'},
   klova:{n:'Klova',c:'#d4a853'}, camper:{n:'Camper & Metacrilato',c:'#fb923c'},
   kifar:{n:'Kifar',c:'#2dd4bf'}, ia:{n:'Negocio IA',c:'#a78bfa'}, personal:{n:'Personal',c:'#94a3b8'}
@@ -1009,8 +1011,61 @@ let state = {
   trabajadores: [],
   objetivos_vals: {},
   objetivoMes: 15000,
-  config: { objetivoMes: 15000, objetivos_vals: {} }
+  config: { objetivoMes: 15000, objetivos_vals: {} },
+  proyectos: []
 };
+
+// ─── MÓDULO PROYECTOS ─────────────────────────────────
+const PROYECTOS_DEFAULT = [
+  {id:'uni',        nombre:'Universidad',            color:'#60a5fa', estado:'activo', obsidianSlug:'', fases:[], pasos:[], pasoActual:''},
+  {id:'trading',    nombre:'Trading',                color:'#4ade80', estado:'activo', obsidianSlug:'', fases:[], pasos:[], pasoActual:''},
+  {id:'klova',      nombre:'Klova',                  color:'#d4a853', estado:'activo', obsidianSlug:'', fases:[], pasos:[], pasoActual:''},
+  {id:'camper',     nombre:'Fabricación de campers', color:'#fb923c', estado:'activo', obsidianSlug:'', fases:[], pasos:[], pasoActual:''},
+  {id:'kifar',      nombre:'Kifar',                  color:'#2dd4bf', estado:'activo', obsidianSlug:'', fases:[], pasos:[], pasoActual:''},
+  {id:'ia',         nombre:'Negocio IA',             color:'#a78bfa', estado:'activo', obsidianSlug:'', fases:[], pasos:[], pasoActual:''},
+  {id:'personal',   nombre:'Personal',               color:'#94a3b8', estado:'activo', obsidianSlug:'', fases:[], pasos:[], pasoActual:''},
+  {id:'cnc',        nombre:'CNC y metacrilato',      color:'#f472b6', estado:'activo', obsidianSlug:'', fases:[], pasos:[], pasoActual:''},
+  {id:'coches',     nombre:'Compraventa de coches',  color:'#ef4444', estado:'activo', obsidianSlug:'', fases:[], pasos:[], pasoActual:''},
+  {id:'muebles',    nombre:'Tienda de muebles',      color:'#eab308', estado:'activo', obsidianSlug:'', fases:[], pasos:[], pasoActual:''},
+  {id:'mobilehome', nombre:'Importación mobile home',color:'#06b6d4', estado:'activo', obsidianSlug:'', fases:[], pasos:[], pasoActual:''},
+  {id:'inversiones',nombre:'Inversiones',            color:'#6366f1', estado:'activo', obsidianSlug:'', fases:[], pasos:[], pasoActual:''},
+];
+
+// Reconstruye el mapa PROYECTOS (usado en todo el rendering) desde state.proyectos.
+// .n y .c son los alias cortos que consume el rendering (PROYECTOS[x].n / .c);
+// conservamos el resto de campos (estado, obsidianSlug, fases, pasos, pasoActual)
+// con ...p para que futuras fases puedan leerlos desde el mismo mapa.
+// Si state.proyectos está vacío se queda el mapa por defecto de 7 entradas.
+function syncProyectosEnum() {
+  if (!state.proyectos || !state.proyectos.length) return;
+  PROYECTOS = {};
+  for (const p of state.proyectos) {
+    PROYECTOS[p.id] = { ...p, n: p.nombre, c: p.color };
+  }
+}
+
+// Auto-seed: si el módulo 'proyectos' no existe en Firestore lo crea con el array
+// por defecto y luego sincroniza el enum. Es async y se llama desde el módulo Firebase.
+async function seedProyectos() {
+  if (!state.proyectos || !state.proyectos.length) {
+    state.proyectos = PROYECTOS_DEFAULT;
+    try { await window._save('proyectos', state.proyectos); } catch(e) { console.warn('seedProyectos: no se pudo guardar', e); }
+  }
+  syncProyectosEnum();
+}
+
+// Rellena un <select> con las opciones del mapa PROYECTOS actual.
+// includeEmpty: añade la opción vacía "Sin proyecto" al inicio.
+function poblarSelectProyecto(selectId, includeEmpty, valorActual) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  let html = includeEmpty ? '<option value="">Sin proyecto (dorado)</option>' : '';
+  for (const [k, v] of Object.entries(PROYECTOS)) {
+    html += `<option value="${k}">${v.n}</option>`;
+  }
+  sel.innerHTML = html;
+  sel.value = valorActual || '';
+}
 
 let tabActiva = 'dashboard';
 let opDir = 'long', opRes = 'open', pRes = 'win';
@@ -4719,9 +4774,8 @@ function renderDashboard() {
   for(let d=1;d<=ultimoDia.getDate();d++){
     const fs=`${ahora.getFullYear()}-${String(ahora.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const tD=(state.tareas||[]).filter(t=>t.fecha===fs&&!t.done).length;
-    const eD=((state.agenda||{})[fs]||[]).length;
     const isT=d===ahora.getDate();
-    calDias+=`<div onclick="verDia(${d},${ahora.getMonth()},${ahora.getFullYear()})" style="text-align:center;font-size:9px;cursor:pointer;padding:2px 1px;border-radius:4px;border:1px solid ${isT?'var(--gold)':'transparent'};color:${isT?'var(--gold)':'var(--text2)'};position:relative;${(tD||eD)?'background:var(--s3)':''}">${d}${(tD||eD)?`<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:3px;height:3px;border-radius:50%;background:${tD?'var(--blue)':'var(--gold)'};"></div>`:''}</div>`;
+    calDias+=`<div onclick="verDia(${d},${ahora.getMonth()},${ahora.getFullYear()})" style="text-align:center;font-size:9px;cursor:pointer;padding:2px 1px;border-radius:4px;border:1px solid ${isT?'var(--gold)':'transparent'};color:${isT?'var(--gold)':'var(--text2)'};position:relative;${tD?'background:var(--s3)':''}">${d}${tD?`<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:3px;height:3px;border-radius:50%;background:var(--blue);"></div>`:''}</div>`;
   }
 
   const isDesktop = window.innerWidth >= 900;
@@ -4826,13 +4880,7 @@ function renderDashboard() {
             <button class="btn btn-primary" style="padding:7px 12px;font-size:11px;" onclick="quickAddTask()">+</button>
           </div>
           <select id="quickTaskProy" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text2);font-family:'Geist Mono',monospace;font-size:10px;outline:none;">
-            <option value="personal">Personal</option>
-            <option value="uni">Universidad</option>
-            <option value="trading">Trading</option>
-            <option value="klova">Klova</option>
-            <option value="camper">Camper</option>
-            <option value="kifar">Kifar</option>
-            <option value="ia">Negocio IA</option>
+            ${Object.entries(PROYECTOS).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('')}
           </select>
         </div>
         <button class="btn btn-secondary" style="width:100%;font-size:9px;padding:5px;margin-top:4px;" onclick="renderTab('tareas')">Ver todas →</button>
@@ -4842,7 +4890,7 @@ function renderDashboard() {
         <div class="section-label">Calendario · ${MESES[ahora.getMonth()]}</div>
         <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:10px;">
           <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">${calDias}</div>
-          <div style="display:flex;gap:8px;margin-top:6px;"><span style="font-size:7px;color:var(--text3);">🔵 Tareas</span><span style="font-size:7px;color:var(--text3);">🟡 Eventos</span></div>
+          <div style="display:flex;gap:8px;margin-top:6px;"><span style="font-size:7px;color:var(--text3);">🔵 Tareas</span></div>
         </div>
       </div>
     </div>
@@ -5415,7 +5463,7 @@ function abrirModalEvento(hora, fechaKey) {
   document.getElementById("mEv-fin").value="";
   document.getElementById("mEv-notas").value="";
   document.getElementById("mEv-del").style.display="none";
-  const sp=document.getElementById("mEv-proyecto"); if(sp) sp.value="";
+  poblarSelectProyecto("mEv-proyecto", true, "");
   const sr=document.getElementById("mEv-recurrencia"); if(sr) sr.value="";
   abrirModal("mEvento");
 }
@@ -5435,7 +5483,7 @@ function editarEvento(id) {
   document.getElementById("mEv-fin").value=e.fin||"";
   document.getElementById("mEv-notas").value=e.notas||"";
   document.getElementById("mEv-del").style.display="block";
-  const sp=document.getElementById("mEv-proyecto"); if(sp) sp.value=e.proyectoId||"";
+  poblarSelectProyecto("mEv-proyecto", true, e.proyectoId||"");
   const sr=document.getElementById("mEv-recurrencia"); if(sr) sr.value=e.recurrencia||"";
   abrirModal("mEvento");
 }
@@ -5807,7 +5855,7 @@ function abrirEditorEventoModo(e, fechaStr, modo) {
   document.getElementById('mEv-ini').value = e.inicio || '';
   document.getElementById('mEv-fin').value = e.fin || '';
   document.getElementById('mEv-notas').value = e.notas || '';
-  const sp = document.getElementById('mEv-proyecto'); if(sp) sp.value = e.proyectoId || '';
+  poblarSelectProyecto('mEv-proyecto', true, e.proyectoId || '');
   // Recurrencia: solo se conserva si estamos editando toda la serie o futuros.
   // En modo 'solo' la quitamos para que este pase a ser un evento independiente.
   const sr = document.getElementById('mEv-recurrencia');
@@ -5846,7 +5894,7 @@ function editarEventoTodos(id, fechaDesde) {
   document.getElementById('mEv-ini').value=eOriginal.inicio;
   document.getElementById('mEv-fin').value=eOriginal.fin||'';
   document.getElementById('mEv-notas').value=eOriginal.notas||'';
-  const sp=document.getElementById('mEv-proyecto'); if(sp) sp.value=eOriginal.proyectoId||'';
+  poblarSelectProyecto('mEv-proyecto', true, eOriginal.proyectoId||'');
   const sr=document.getElementById('mEv-recurrencia'); if(sr) sr.value=eOriginal.recurrencia||'';
   document.getElementById('mEv-del').style.display='block';
   abrirModal('mEvento');
@@ -5945,8 +5993,8 @@ function actualizarBadges() {
     if(p){const b=document.createElement('div');b.className='nav-badge';b.style.background='var(--orange)';b.textContent=pronPend;p.appendChild(b);}
   }
 }
-function abrirModalTarea() { document.getElementById('mTaT').textContent='Nueva tarea'; document.getElementById('mTa-id').value=''; ['mTa-titulo','mTa-desc','mTa-notas'].forEach(i=>document.getElementById(i).value=''); document.getElementById('mTa-prio').value=''; document.getElementById('mTa-fecha').value=''; document.getElementById('mTa-del').style.display='none'; abrirModal('mTarea'); }
-function editarTarea(id) { const t=(state.tareas||[]).find(x=>x.id===id); if(!t) return; document.getElementById('mTaT').textContent='Editar tarea'; document.getElementById('mTa-id').value=id; document.getElementById('mTa-titulo').value=t.titulo; document.getElementById('mTa-desc').value=t.desc||''; document.getElementById('mTa-proy').value=t.proyectoId||'personal'; document.getElementById('mTa-prio').value=t.prioridad||''; document.getElementById('mTa-fecha').value=t.fecha||''; document.getElementById('mTa-notas').value=t.notas||''; document.getElementById('mTa-del').style.display='block'; abrirModal('mTarea'); }
+function abrirModalTarea() { document.getElementById('mTaT').textContent='Nueva tarea'; document.getElementById('mTa-id').value=''; ['mTa-titulo','mTa-desc','mTa-notas'].forEach(i=>document.getElementById(i).value=''); document.getElementById('mTa-prio').value=''; document.getElementById('mTa-fecha').value=''; document.getElementById('mTa-del').style.display='none'; poblarSelectProyecto('mTa-proy', false, 'personal'); abrirModal('mTarea'); }
+function editarTarea(id) { const t=(state.tareas||[]).find(x=>x.id===id); if(!t) return; document.getElementById('mTaT').textContent='Editar tarea'; document.getElementById('mTa-id').value=id; document.getElementById('mTa-titulo').value=t.titulo; document.getElementById('mTa-desc').value=t.desc||''; poblarSelectProyecto('mTa-proy', false, t.proyectoId||'personal'); document.getElementById('mTa-prio').value=t.prioridad||''; document.getElementById('mTa-fecha').value=t.fecha||''; document.getElementById('mTa-notas').value=t.notas||''; document.getElementById('mTa-del').style.display='block'; abrirModal('mTarea'); }
 function guardarTarea() { const titulo=document.getElementById('mTa-titulo').value.trim(); if(!titulo){alert('Título obligatorio');return;} if(!state.tareas) state.tareas=[]; const id=document.getElementById('mTa-id').value||uid(); const tarea={id,titulo,desc:document.getElementById('mTa-desc').value,proyectoId:document.getElementById('mTa-proy').value,prioridad:document.getElementById('mTa-prio').value,fecha:document.getElementById('mTa-fecha').value,notas:document.getElementById('mTa-notas').value,done:(state.tareas.find(x=>x.id===id)||{}).done||false}; const idx=state.tareas.findIndex(x=>x.id===id); if(idx>=0) state.tareas[idx]=tarea; else state.tareas.push(tarea); save('tareas'); cerrarModal('mTarea'); renderTareas(); showToast('✓ Tarea guardada'); }
 function eliminarTarea() { const id=document.getElementById('mTa-id').value; if(!confirm('¿Eliminar?')) return; state.tareas=(state.tareas||[]).filter(x=>x.id!==id); save('tareas'); cerrarModal('mTarea'); renderTareas(); showToast('Eliminada'); }
 
