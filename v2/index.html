@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#09090b" id="metaTheme" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Dashboard v2" />
+  <title>Dashboard v2 · Rubén</title>
+  <script type="module" crossorigin src="./assets/index-CZq9xdby.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DicatsmT.css">
+</head>
+<body>
+  <!-- Pantalla de login -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-brand">
+      <div class="login-title">Sylva</div>
+      <div class="login-sub">Dashboard v2</div>
+    </div>
+    <button id="btnLogin" class="btn-google">
+      <span class="g-dot"></span> Entrar con Google
+    </button>
+    <div id="loginEstado" class="login-estado"></div>
+  </div>
+
+  <!-- App -->
+  <div id="appScreen" class="app-screen" hidden>
+    <header class="app-header">
+      <div class="header-left">
+        <span id="syncDot" class="sync-dot" title="Estado de sincronización"></span>
+        <span class="header-brand">Sylva</span>
+      </div>
+      <div class="header-right">
+        <button id="btnTema" class="icon-btn" title="Cambiar tema" aria-label="Cambiar tema">◐</button>
+        <img id="userAvatar" class="user-avatar" alt="" />
+        <span id="userName" class="user-name"></span>
+        <button id="btnLogout" class="icon-btn" title="Cerrar sesión" aria-label="Cerrar sesión">⏻</button>
+      </div>
+    </header>
+
+    <nav id="appNav" class="app-nav"></nav>
+
+    <main id="appMain" class="app-main"></main>
+  </div>
+
+  <div id="toastHost" class="toast-host"></div>
+
+</body>
+</html>
